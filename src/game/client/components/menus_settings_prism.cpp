@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include <engine/client/keyboard.h>
 #include <engine/keys.h>
 #include <engine/shared/config.h>
 #include <game/client/prism.h>

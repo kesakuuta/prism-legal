@@ -1981,11 +1981,13 @@ void CHud::RenderPrismModules()
 			Text(0, "PRISM  /  0.3.0", true);
 			break;
 		case PrismQol::HUD_PERFORMANCE:
+		{
 			char aPerf[64];
 			const int FramesPerSecond = round_to_int(1.0f / Client()->FrameTimeAverage());
 			str_format(aPerf, sizeof(aPerf), "FPS: %d", FramesPerSecond);
 			Text(0, aPerf, true);
 			break;
+		}
 		case PrismQol::HUD_EFFECTS:
 			Text(0, "Cosmetic Effects:", true);
 			int r = 1;
