@@ -152,6 +152,7 @@ protected:
 	int m_PrismHudDragIndex = -1;
 	vec2 m_PrismHudDragOffset = vec2(0.0f, 0.0f);
 	int m_PrismCategory = 0;
+	int m_PrismCaptureBind = -1;
 
 	bool m_DummyNamePlatePreview = false;
 

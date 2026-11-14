@@ -1,20 +1,3 @@
-#include "components/tclient/bg_draw.h"
-#include "components/tclient/bindchat.h"
-#include "components/tclient/bindwheel.h"
-#include "components/tclient/custom_communities.h"
-#include "components/tclient/mod.h"
-#include "components/tclient/moving_tiles.h"
-#include "components/tclient/mumble.h"
-#include "components/tclient/outlines.h"
-#include "components/tclient/pet.h"
-#include "components/tclient/player_indicator.h"
-#include "components/tclient/rainbow.h"
-#include "components/tclient/skinprofiles.h"
-#include "components/tclient/statusbar.h"
-#include "components/tclient/tclient.h"
-#include "components/tclient/trails.h"
-#include "components/tclient/translate.h"
-#include "components/tclient/warlist.h"
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #ifndef GAME_CLIENT_GAMECLIENT_H
@@ -178,25 +161,6 @@ public:
 	CKeyBinder m_KeyBinder;
 	CParticles m_Particles;
 	CMenus m_Menus;
-	// TClient Components
-	CSkinProfiles m_SkinProfiles;
-	CStatusBar m_StatusBar;
-	CBindChat m_BindChat;
-	CBindWheel m_BindWheel;
-	CBgDraw m_BgDraw;
-	CTClient m_TClient;
-	CTrails m_Trails;
-	CTranslate m_Translate;
-	CPet m_Pet;
-	CPlayerIndicator m_PlayerIndicator;
-	COutlines m_Outlines;
-	CMumble m_Mumble;
-	CRainbow m_Rainbow;
-	CWarList m_WarList;
-	CMod m_Mod;
-	CCustomCommunities m_CustomCommunities;
-	CMovingTiles m_MovingTilesBackground = CMovingTiles{false};
-	CMovingTiles m_MovingTilesForeground = CMovingTiles{true};
 
 	CSkins m_Skins;
 	CSkins7 m_Skins7;

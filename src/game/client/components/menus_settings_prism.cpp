@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include <engine/keys.h>
 #include <engine/shared/config.h>
 #include <game/client/prism.h>
 #include <game/client/prism_qol.h>
@@ -198,12 +199,7 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
 	Inner.HSplitBottom(19.0f, &Body, &Footer);
 	CUIRect Title, Close;
 	Header.VSplitRight(67.0f, &Title, &Close);
-	const float PreviousTextScaleX = TextRender()->GetTextScaleX();
-	TextRender()->SetFontPreset(EFontPreset::PRISM_HEADING);
-	TextRender()->SetTextScaleX(g_Config.m_PrismThemeHeadingWidth / 100.0f);
 	Ui()->DoLabel(&Title, "PRISM", 15.0f, TEXTALIGN_ML);
-	TextRender()->SetTextScaleX(PreviousTextScaleX);
-	TextRender()->SetFontPreset(EFontPreset::PRISM_BODY);
 	static CButtonContainer s_Close;
 	if(DoButton_Menu(&s_Close, "Close", 0, &Close, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f, 0.46f, ColorRGBA(0.35f, 0.43f, 0.51f, 0.22f)))
 	{
@@ -321,7 +317,7 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
     auto Bind = [&](const char *pLabel, int *pValue, int Target, int ButtonId) {
         char aText[128];
         str_format(aText, sizeof(aText), "%s: %s", pLabel,
-            m_PrismCaptureBind == Target ? "PRESS A KEY (Esc unbinds)" : (*pValue ? Input()->KeyName(*pValue) : "Unbound"));
+            m_PrismCaptureBind == Target ? "PRESS A KEY (Esc unbinds)" : (*pValue ? KeyName(*pValue) : "Unbound"));
         if(Button(aText, ButtonId)) m_PrismCaptureBind = Target;
     };
     	switch(m_PrismCategory)

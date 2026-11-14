@@ -1969,12 +1969,10 @@ void CHud::RenderPrismModules()
 		}
 
 		auto Text = [&](int Row, const char *pText, bool Highlight = false) {
-			CTextCursor Cursor;
-			TextRender()->SetCursor(&Cursor, X + Pad, Y + Pad + Row * RowHeight, Font, TEXTFLAG_RENDER);
-			Cursor.m_LineWidth = Width - Pad * 2.0f;
 			ColorRGBA Color = Highlight ? Accent : color_cast<ColorRGBA>(ColorHSLA(g_Config.m_PrismThemeText)).WithAlpha(Opacity);
 			TextRender()->TextColor(Color);
-			TextRender()->TextEx(&Cursor, pText);
+			TextRender()->Text(X + Pad, Y + Pad + Row * RowHeight, Font, pText, Width - Pad * 2.0f);
+			TextRender()->TextColor(TextRender()->DefaultTextColor());
 		};
 
 		switch(Module)
@@ -1984,7 +1982,8 @@ void CHud::RenderPrismModules()
 			break;
 		case PrismQol::HUD_PERFORMANCE:
 			char aPerf[64];
-			str_format(aPerf, sizeof(aPerf), "FPS: %d", Client()->GetFPS());
+			const int FramesPerSecond = round_to_int(1.0f / Client()->FrameTimeAverage());
+			str_format(aPerf, sizeof(aPerf), "FPS: %d", FramesPerSecond);
 			Text(0, aPerf, true);
 			break;
 		case PrismQol::HUD_EFFECTS:

@@ -2730,45 +2730,7 @@ if(CLIENT)
     components/menus_settings_language.cpp
     components/menus_settings_player.cpp
     components/menus_settings_prism.cpp
-    components/tclient/bg_draw.cpp
-    components/tclient/bg_draw.h
-    components/tclient/bg_draw_file.cpp
-    components/tclient/bg_draw_file.h
-    components/tclient/bindchat.cpp
-    components/tclient/bindchat.h
-    components/tclient/bindwheel.cpp
-    components/tclient/bindwheel.h
-    components/tclient/colored_parts.h
-    components/tclient/custom_communities.cpp
-    components/tclient/custom_communities.h
-    components/tclient/data_version.h
-    components/tclient/menus_tclient.cpp
-    components/tclient/mod.cpp
-    components/tclient/mod.h
-    components/tclient/moving_tiles.cpp
-    components/tclient/moving_tiles.h
-    components/tclient/mumble.cpp
-    components/tclient/mumble.h
-    components/tclient/outlines.cpp
-    components/tclient/outlines.h
-    components/tclient/pet.cpp
-    components/tclient/pet.h
-    components/tclient/player_indicator.cpp
-    components/tclient/player_indicator.h
-    components/tclient/rainbow.cpp
-    components/tclient/rainbow.h
-    components/tclient/skinprofiles.cpp
-    components/tclient/skinprofiles.h
-    components/tclient/statusbar.cpp
-    components/tclient/statusbar.h
-    components/tclient/tclient.cpp
-    components/tclient/tclient.h
-    components/tclient/trails.cpp
-    components/tclient/trails.h
-    components/tclient/translate.cpp
-    components/tclient/translate.h
-    components/tclient/warlist.cpp
-    components/tclient/warlist.h
+    components/menus_settings_tclient.cpp
     components/tooltips.cpp
     components/tooltips.h
     components/menus_settings_sound.cpp
