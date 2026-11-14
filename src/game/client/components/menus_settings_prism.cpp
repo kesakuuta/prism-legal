@@ -590,7 +590,7 @@ case 4: // Themes
 		Toggle("Enable Prism visuals", &g_Config.m_PrismEnabled);
 		Toggle("Modular HUD", &g_Config.m_PrismHudEnabled);
 		char aStatus[128];
-		str_format(aStatus, sizeof(aStatus), "Client: Prism Legit Edition (DDNet 20.3)   |   Status: Active");
+		str_copy(aStatus, "Client: Prism Legit Edition (DDNet 20.3)   |   Status: Active");
 		Label(aStatus);
 		Label("Insert / Esc: close overlay");
 		Label("Performance   /   measured locally");
