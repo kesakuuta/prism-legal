@@ -2731,8 +2731,6 @@ if(CLIENT)
     components/menus_settings_player.cpp
     components/menus_settings_prism.cpp
     components/menus_settings_tclient.cpp
-    components/tooltips.cpp
-    components/tooltips.h
     components/menus_settings_sound.cpp
     components/menus_settings_tee.cpp
     components/menus_settings_tee7.cpp
