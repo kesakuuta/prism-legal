@@ -85,33 +85,110 @@ jobs:
           }
 
           $wavpackRoot = Join-Path $vcpkgRoot "installed/x64-windows-static"
-          $wavpackHeader = Join-Path $wavpackRoot "include/wavpack.h"
-          $wavpackLibrary = Join-Path $wavpackRoot "lib/wavpack.lib"
+          $includeRoot = Join-Path $wavpackRoot "include"
+          $libraryRoot = Join-Path $wavpackRoot "lib"
 
-          if (-not (Test-Path $wavpackHeader)) {
-            throw "WavPack header not found: $wavpackHeader"
+          if (-not (Test-Path $includeRoot)) {
+            throw "WavPack include directory not found: $includeRoot"
           }
 
-          if (-not (Test-Path $wavpackLibrary)) {
-            throw "WavPack library not found: $wavpackLibrary"
+          if (-not (Test-Path $libraryRoot)) {
+            throw "WavPack library directory not found: $libraryRoot"
           }
+
+          $header = Get-ChildItem `
+            -Path $includeRoot `
+            -Filter "wavpack.h" `
+            -Recurse `
+            -File |
+            Select-Object -First 1
+
+          if (-not $header) {
+            throw "WavPack header was not found under: $includeRoot"
+          }
+
+          $releaseLibrary = Get-ChildItem `
+            -Path $libraryRoot `
+            -Recurse `
+            -File |
+            Where-Object {
+              $_.Name -in @("wavpack.lib", "libwavpack.lib")
+            } |
+            Select-Object -First 1
+
+          if (-not $releaseLibrary) {
+            throw "WavPack release library was not found under: $libraryRoot"
+          }
+
+          $debugLibraryRoot = Join-Path $wavpackRoot "debug/lib"
+
+          $debugLibrary = $null
+
+          if (Test-Path $debugLibraryRoot) {
+            $debugLibrary = Get-ChildItem `
+              -Path $debugLibraryRoot `
+              -Recurse `
+              -File |
+              Where-Object {
+                $_.Name -in @("wavpack.lib", "libwavpack.lib")
+              } |
+              Select-Object -First 1
+          }
+
+          $includeDir = $header.Directory.FullName
 
           "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "WAVPACK_ROOT=$wavpackRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "WAVPACK_INCLUDEDIR=$includeDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "WAVPACK_RELEASE_LIBRARY=$($releaseLibrary.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-          Write-Host "WavPack header: $wavpackHeader"
-          Write-Host "WavPack library: $wavpackLibrary"
+          if ($debugLibrary) {
+            "WAVPACK_DEBUG_LIBRARY=$($debugLibrary.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          }
+          else {
+            "WAVPACK_DEBUG_LIBRARY=$($releaseLibrary.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          }
+
+          Write-Host "WavPack root: $wavpackRoot"
+          Write-Host "WavPack header: $($header.FullName)"
+          Write-Host "WavPack include directory: $includeDir"
+          Write-Host "WavPack Release library: $($releaseLibrary.FullName)"
+
+          if ($debugLibrary) {
+            Write-Host "WavPack Debug library: $($debugLibrary.FullName)"
+          }
+          else {
+            Write-Host "WavPack Debug library: Release library fallback"
+          }
 
       - name: Configure
         shell: pwsh
         run: |
+          $wavpackLibrary = if ('${{ matrix.configuration }}' -eq 'Debug') {
+            $env:WAVPACK_DEBUG_LIBRARY
+          }
+          else {
+            $env:WAVPACK_RELEASE_LIBRARY
+          }
+
+          if (-not (Test-Path $env:WAVPACK_INCLUDEDIR)) {
+            throw "WavPack include directory does not exist."
+          }
+
+          if (-not (Test-Path $wavpackLibrary)) {
+            throw "WavPack library does not exist: $wavpackLibrary"
+          }
+
+          Write-Host "Configuring ${{ matrix.configuration }}"
+          Write-Host "WavPack include: $env:WAVPACK_INCLUDEDIR"
+          Write-Host "WavPack library: $wavpackLibrary"
+
           cmake -S . -B build -A x64 `
             -DCMAKE_BUILD_TYPE=${{ matrix.configuration }} `
             -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_${{ matrix.configuration == 'Release' && 'RELEASE' || 'DEBUG' }}=. `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
             -DVCPKG_TARGET_TRIPLET=x64-windows-static `
-            -DWAVPACK_INCLUDEDIR="$env:WAVPACK_ROOT/include" `
-            -DWAVPACK_LIBRARY="$env:WAVPACK_ROOT/lib/wavpack.lib" `
+            -DWAVPACK_INCLUDEDIR="$env:WAVPACK_INCLUDEDIR" `
+            -DWAVPACK_LIBRARY="$wavpackLibrary" `
             -DDOWNLOAD_GTEST=ON `
             -DCLIENT=ON `
             -DSERVER=ON `
@@ -129,17 +206,50 @@ jobs:
       - name: Verify WavPack configuration
         shell: pwsh
         run: |
-          $cache = Get-Content build/CMakeCache.txt -Raw
+          $cachePath = "build/CMakeCache.txt"
 
-          if ($cache -notmatch 'WAVPACK_LIBRARY:FILEPATH=.*wavpack\.lib') {
-            throw "CMake did not resolve WAVPACK_LIBRARY."
+          if (-not (Test-Path $cachePath)) {
+            throw "CMakeCache.txt was not generated."
           }
 
-          if ($cache -notmatch 'WAVPACK_INCLUDEDIR:PATH=.*include') {
-            throw "CMake did not resolve WAVPACK_INCLUDEDIR."
+          $cache = Get-Content $cachePath -Raw
+
+          $libraryMatch = [regex]::Match(
+            $cache,
+            '(?m)^WAVPACK_LIBRARY(?::[^=]+)?=(.+)$'
+          )
+
+          $includeMatch = [regex]::Match(
+            $cache,
+            '(?m)^WAVPACK_INCLUDEDIR(?::[^=]+)?=(.+)$'
+          )
+
+          if (-not $libraryMatch.Success) {
+            throw "WAVPACK_LIBRARY is missing from CMakeCache."
           }
 
-          Write-Host "WavPack was successfully detected by CMake."
+          if (-not $includeMatch.Success) {
+            throw "WAVPACK_INCLUDEDIR is missing from CMakeCache."
+          }
+
+          $configuredLibrary = $libraryMatch.Groups[1].Value.Trim()
+          $configuredInclude = $includeMatch.Groups[1].Value.Trim()
+
+          if (-not (Test-Path $configuredLibrary)) {
+            throw "Configured WavPack library does not exist: $configuredLibrary"
+          }
+
+          if (-not (Test-Path $configuredInclude)) {
+            throw "Configured WavPack include directory does not exist: $configuredInclude"
+          }
+
+          if (-not (Test-Path (Join-Path $configuredInclude "wavpack.h"))) {
+            throw "wavpack.h was not found in configured include directory."
+          }
+
+          Write-Host "WavPack configuration verified."
+          Write-Host "Include: $configuredInclude"
+          Write-Host "Library: $configuredLibrary"
 
       - name: Build client and tests
         shell: pwsh
