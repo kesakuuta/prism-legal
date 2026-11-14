@@ -65,30 +65,39 @@ jobs:
             -DCLIENT_EXECUTABLE=Prism
 
       - name: Build Prism Client
-        run: cmake --build build --config Release --target Prism --parallel
+        run: cmake --build build --config Release --target game-client --parallel
 
       - name: Package Windows Distribution
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist/Prism | Out-Null
 
-          # Copy executable
-          if (Test-Path build/Release/Prism.exe) {
-            Copy-Item build/Release/Prism.exe dist/Prism/
-          } elseif (Test-Path build/Release/DDNet.exe) {
-            Copy-Item build/Release/DDNet.exe dist/Prism/Prism.exe
-          } elseif (Test-Path build/Prism.exe) {
-            Copy-Item build/Prism.exe dist/Prism/
+          # Find and copy built client executable
+          $exe = Get-ChildItem -Path build -Filter "Prism.exe" -Recurse -File | Select-Object -First 1
+          if (-not $exe) {
+            $exe = Get-ChildItem -Path build -Filter "DDNet.exe" -Recurse -File | Select-Object -First 1
+          }
+          if (-not $exe) {
+            $exe = Get-ChildItem -Path build -Filter "game-client.exe" -Recurse -File | Select-Object -First 1
+          }
+          if ($exe) {
+            Copy-Item $exe.FullName dist/Prism/Prism.exe -Force
+            Write-Host "Found executable: $($exe.FullName)"
+          } else {
+            Write-Error "Could not find built client executable!"
+            exit 1
           }
 
           # Copy DLLs from ddnet-libs and build output
           if (Test-Path ddnet-libs) {
-            Get-ChildItem -Path ddnet-libs -Filter "*.dll" -Recurse | Where-Object { $_.FullName -like "*windows*lib64*" } | ForEach-Object {
+            Get-ChildItem -Path ddnet-libs -Filter "*.dll" -Recurse -File | Where-Object { $_.FullName -like "*windows*lib64*" } | ForEach-Object {
               Copy-Item $_.FullName dist/Prism/ -Force
             }
           }
-          if (Test-Path build/Release/*.dll) {
-            Copy-Item build/Release/*.dll dist/Prism/ -Force
+          if (Test-Path build) {
+            Get-ChildItem -Path build -Filter "*.dll" -Recurse -File | ForEach-Object {
+              Copy-Item $_.FullName dist/Prism/ -Force
+            }
           }
 
           # Copy data assets (fonts, tclient assets, themes, skins, mapres)
@@ -170,17 +179,20 @@ jobs:
             -DCLIENT_EXECUTABLE=Prism
 
       - name: Build Prism Client
-        run: cmake --build build --target Prism
+        run: cmake --build build --config Release --target game-client --parallel
 
       - name: Package Linux Distribution
         run: |
           mkdir -p dist/Prism
-          if [ -f build/Prism ]; then
-            cp build/Prism dist/Prism/
-          elif [ -f build/DDNet ]; then
-            cp build/DDNet dist/Prism/Prism
+          EXE=$(find build -maxdepth 3 -type f \( -name "Prism" -o -name "DDNet" -o -name "game-client" \) | grep -v "\.dir" | head -n 1)
+          if [ -n "$EXE" ]; then
+            cp "$EXE" dist/Prism/Prism
+            chmod +x dist/Prism/Prism
+            echo "Found binary: $EXE"
+          else
+            echo "ERROR: Client binary not found!"
+            exit 1
           fi
-          chmod +x dist/Prism/Prism
           cp -r data dist/Prism/
           [ -f storage.cfg ] && cp storage.cfg dist/Prism/
           [ -f license.txt ] && cp license.txt dist/Prism/

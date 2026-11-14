@@ -1,6 +1,6 @@
 //! Mathematical utilities, vector operations, color space conversions for Prism & DDNet.
 
-use crate::color::ColorRGBA;
+pub use crate::color::ColorRGBA;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]

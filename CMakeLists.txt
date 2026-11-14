@@ -3349,16 +3349,14 @@ if(SERVER)
 endif()
 
 # Targets for compatibility with build commands previously available with Makefiles
-if(CMAKE_GENERATOR MATCHES ".*Makefiles.*")
-  if(TARGET game-client)
-    add_custom_target(${CLIENT_EXECUTABLE})
-    add_dependencies(${CLIENT_EXECUTABLE} game-client)
-  endif()
+if(TARGET game-client AND NOT TARGET ${CLIENT_EXECUTABLE})
+  add_custom_target(${CLIENT_EXECUTABLE})
+  add_dependencies(${CLIENT_EXECUTABLE} game-client)
+endif()
 
-  if(TARGET game-server)
-    add_custom_target(${SERVER_EXECUTABLE})
-    add_dependencies(${SERVER_EXECUTABLE} game-server)
-  endif()
+if(TARGET game-server AND NOT TARGET ${SERVER_EXECUTABLE})
+  add_custom_target(${SERVER_EXECUTABLE})
+  add_dependencies(${SERVER_EXECUTABLE} game-server)
 endif()
 
 ########################################################################
