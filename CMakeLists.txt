@@ -207,7 +207,7 @@ if(NOT "${CMAKE_CURRENT_BINARY_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
 set(SERVER_EXECUTABLE DDNet-Server CACHE STRING "Name of the built server executable")
-set(CLIENT_EXECUTABLE DDNet CACHE STRING "Name of the build client executable")
+set(CLIENT_EXECUTABLE Prism CACHE STRING "Name of the build client executable")
 set(IOS_BUNDLE_IDENTIFIER "org.ddnet.client" CACHE STRING "iOS bundle identifier")
 
 ########################################################################
@@ -1002,10 +1002,18 @@ endif()
 set_glob(RUST_BASE GLOB_RECURSE "rs;toml" src/base
   # tidy-alphabetical-start
   Cargo.toml
+  chinese_hat.rs
   color.rs
   dbg.rs
   lib.rs
+  prism_hud.rs
+  prism_math.rs
+  prism_theme.rs
   rust.rs
+  tclient_pet.rs
+  tclient_rainbow.rs
+  tclient_statusbar.rs
+  tclient_trails.rs
   # tidy-alphabetical-end
 )
 
@@ -2272,6 +2280,8 @@ set_src(BASE GLOB_RECURSE src/base
   net.h
   os.cpp
   os.h
+  prism_core_rust.cpp
+  prism_core_rust.h
   process.cpp
   process.h
   rust.h
