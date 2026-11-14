@@ -2834,6 +2834,7 @@ if(CLIENT)
     prism.h
     prism_effects.h
     prism_effects_render.h
+    prism_qol.h
     prism_theme.cpp
     prism_theme.h
     prism_ui.h

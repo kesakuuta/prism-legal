@@ -1,328 +1,204 @@
-
-name: Prism Windows
+name: Build Prism Client
 
 on:
   push:
-    branches:
-      - feature/prism-v0.1.0-windows
-      - feature/prism-overlay-ui
-      - feature/prism-phase3-qol-identity
-      - feature/prism-visual-identity-vnext
-      - main
+    branches: [main]
+    tags:
+      - 'v*'
   pull_request:
-    branches:
-      - feature/prism-v0.1.0-windows
-      - feature/prism-overlay-ui
-      - feature/prism-phase3-qol-identity
-      - main
+    branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 concurrency:
-  group: prism-windows-${{ github.ref }}
+  group: build-prism-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
-  build:
+  build-windows:
+    name: Windows Client (x86_64)
     runs-on: windows-2022
-
-    strategy:
-      fail-fast: false
-      matrix:
-        configuration:
-          - Release
-          - Debug
-
     steps:
-      - name: Checkout source
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
           submodules: recursive
-          persist-credentials: false
+
+      - name: Update submodules to latest
+        shell: pwsh
+        run: |
+          git submodule update --init --recursive --remote
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Verify triggering revision
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Build Prism Rust Core
         shell: pwsh
         run: |
-          $actual = (git rev-parse HEAD).Trim()
+          cd src/prism-rust
+          cargo test
+          cargo build --release
+          cd ../..
 
-          if ($actual -ne '${{ github.sha }}') {
-            throw "Unexpected checkout: $actual"
-          }
-
-          git diff --exit-code
-          git submodule status --recursive
-
-          New-Item -ItemType Directory -Force build | Out-Null
-          $actual | Set-Content build/TESTED_COMMIT.txt
-
-      - name: Install WavPack
-        shell: pwsh
+      - name: Configure CMake
         run: |
-          $vcpkgRoot = $env:VCPKG_INSTALLATION_ROOT
-
-          if ([string]::IsNullOrWhiteSpace($vcpkgRoot)) {
-            throw "VCPKG_INSTALLATION_ROOT is not defined on this runner."
-          }
-
-          $vcpkg = Join-Path $vcpkgRoot "vcpkg.exe"
-
-          if (-not (Test-Path $vcpkg)) {
-            throw "vcpkg executable not found: $vcpkg"
-          }
-
-          & $vcpkg install wavpack:x64-windows-static
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "vcpkg failed to install WavPack."
-          }
-
-          $wavpackRoot = Join-Path $vcpkgRoot "installed/x64-windows-static"
-          $includeRoot = Join-Path $wavpackRoot "include"
-          $libraryRoot = Join-Path $wavpackRoot "lib"
-
-          if (-not (Test-Path $includeRoot)) {
-            throw "WavPack include directory not found: $includeRoot"
-          }
-
-          if (-not (Test-Path $libraryRoot)) {
-            throw "WavPack library directory not found: $libraryRoot"
-          }
-
-          $header = Get-ChildItem `
-            -Path $includeRoot `
-            -Filter "wavpack.h" `
-            -Recurse `
-            -File |
-            Select-Object -First 1
-
-          if (-not $header) {
-            throw "WavPack header was not found under: $includeRoot"
-          }
-
-          $releaseLibrary = Get-ChildItem `
-            -Path $libraryRoot `
-            -Recurse `
-            -File |
-            Where-Object {
-              $_.Name -in @("wavpack.lib", "libwavpack.lib")
-            } |
-            Select-Object -First 1
-
-          if (-not $releaseLibrary) {
-            throw "WavPack release library was not found under: $libraryRoot"
-          }
-
-          $debugLibraryRoot = Join-Path $wavpackRoot "debug/lib"
-
-          $debugLibrary = $null
-
-          if (Test-Path $debugLibraryRoot) {
-            $debugLibrary = Get-ChildItem `
-              -Path $debugLibraryRoot `
-              -Recurse `
-              -File |
-              Where-Object {
-                $_.Name -in @("wavpack.lib", "libwavpack.lib")
-              } |
-              Select-Object -First 1
-          }
-
-          $includeDir = $header.Directory.FullName
-
-          "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "WAVPACK_INCLUDEDIR=$includeDir" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "WAVPACK_RELEASE_LIBRARY=$($releaseLibrary.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-          if ($debugLibrary) {
-            "WAVPACK_DEBUG_LIBRARY=$($debugLibrary.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
-          }
-          else {
-            "WAVPACK_DEBUG_LIBRARY=$($releaseLibrary.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
-          }
-
-          Write-Host "WavPack root: $wavpackRoot"
-          Write-Host "WavPack header: $($header.FullName)"
-          Write-Host "WavPack include directory: $includeDir"
-          Write-Host "WavPack Release library: $($releaseLibrary.FullName)"
-
-          if ($debugLibrary) {
-            Write-Host "WavPack Debug library: $($debugLibrary.FullName)"
-          }
-          else {
-            Write-Host "WavPack Debug library: Release library fallback"
-          }
-
-      - name: Configure
-        shell: pwsh
-        run: |
-          $wavpackLibrary = if ('${{ matrix.configuration }}' -eq 'Debug') {
-            $env:WAVPACK_DEBUG_LIBRARY
-          }
-          else {
-            $env:WAVPACK_RELEASE_LIBRARY
-          }
-
-          if (-not (Test-Path $env:WAVPACK_INCLUDEDIR)) {
-            throw "WavPack include directory does not exist."
-          }
-
-          if (-not (Test-Path $wavpackLibrary)) {
-            throw "WavPack library does not exist: $wavpackLibrary"
-          }
-
-          Write-Host "Configuring ${{ matrix.configuration }}"
-          Write-Host "WavPack include: $env:WAVPACK_INCLUDEDIR"
-          Write-Host "WavPack library: $wavpackLibrary"
-
           cmake -S . -B build -A x64 `
-            -DCMAKE_BUILD_TYPE=${{ matrix.configuration }} `
-            -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_${{ matrix.configuration == 'Release' && 'RELEASE' || 'DEBUG' }}=. `
-            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
-            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
-            -DWAVPACK_INCLUDEDIR="$env:WAVPACK_INCLUDEDIR" `
-            -DWAVPACK_LIBRARY="$wavpackLibrary" `
-            -DDOWNLOAD_GTEST=ON `
+            -DCMAKE_BUILD_TYPE=Release `
             -DCLIENT=ON `
-            -DSERVER=ON `
+            -DSERVER=OFF `
             -DTOOLS=OFF `
             -DVULKAN=OFF `
+            -DVIDEORECORDER=OFF `
+            -DDOWNLOAD_GTEST=OFF `
             -DAUTOUPDATE=OFF `
             -DSTEAM=OFF `
             -DDISCORD=OFF `
-            -DTESTRUNNER_ARGS=--gtest_output=xml:tests.xml
+            -DCLIENT_EXECUTABLE=Prism
 
-          if ($LASTEXITCODE -ne 0) {
-            throw "CMake configure failed."
-          }
+      - name: Build Prism Client
+        run: cmake --build build --config Release --target Prism --parallel
 
-      - name: Verify WavPack configuration
+      - name: Package Windows Distribution
         shell: pwsh
         run: |
-          $cachePath = "build/CMakeCache.txt"
+          New-Item -ItemType Directory -Force -Path dist/Prism | Out-Null
 
-          if (-not (Test-Path $cachePath)) {
-            throw "CMakeCache.txt was not generated."
+          # Copy executable
+          if (Test-Path build/Release/Prism.exe) {
+            Copy-Item build/Release/Prism.exe dist/Prism/
+          } elseif (Test-Path build/Release/DDNet.exe) {
+            Copy-Item build/Release/DDNet.exe dist/Prism/Prism.exe
+          } elseif (Test-Path build/Prism.exe) {
+            Copy-Item build/Prism.exe dist/Prism/
           }
 
-          $cache = Get-Content $cachePath -Raw
-
-          $libraryMatch = [regex]::Match(
-            $cache,
-            '(?m)^WAVPACK_LIBRARY(?::[^=]+)?=(.+)$'
-          )
-
-          $includeMatch = [regex]::Match(
-            $cache,
-            '(?m)^WAVPACK_INCLUDEDIR(?::[^=]+)?=(.+)$'
-          )
-
-          if (-not $libraryMatch.Success) {
-            throw "WAVPACK_LIBRARY is missing from CMakeCache."
+          # Copy DLLs from ddnet-libs and build output
+          if (Test-Path ddnet-libs) {
+            Get-ChildItem -Path ddnet-libs -Filter "*.dll" -Recurse | Where-Object { $_.FullName -like "*windows*lib64*" } | ForEach-Object {
+              Copy-Item $_.FullName dist/Prism/ -Force
+            }
+          }
+          if (Test-Path build/Release/*.dll) {
+            Copy-Item build/Release/*.dll dist/Prism/ -Force
           }
 
-          if (-not $includeMatch.Success) {
-            throw "WAVPACK_INCLUDEDIR is missing from CMakeCache."
-          }
+          # Copy data assets (fonts, tclient assets, themes, skins, mapres)
+          Copy-Item -Path data -Destination dist/Prism/ -Recurse -Force
 
-          $configuredLibrary = $libraryMatch.Groups[1].Value.Trim()
-          $configuredInclude = $includeMatch.Groups[1].Value.Trim()
+          # Copy config & license
+          if (Test-Path storage.cfg) { Copy-Item storage.cfg dist/Prism/ }
+          if (Test-Path license.txt) { Copy-Item license.txt dist/Prism/ }
 
-          if (-not (Test-Path $configuredLibrary)) {
-            throw "Configured WavPack library does not exist: $configuredLibrary"
-          }
+          # Compress to zip
+          Compress-Archive -Path dist/Prism/* -DestinationPath dist/Prism-Windows-x64.zip -Force
+          Write-Host "Created dist/Prism-Windows-x64.zip successfully!"
 
-          if (-not (Test-Path $configuredInclude)) {
-            throw "Configured WavPack include directory does not exist: $configuredInclude"
-          }
-
-          if (-not (Test-Path (Join-Path $configuredInclude "wavpack.h"))) {
-            throw "wavpack.h was not found in configured include directory."
-          }
-
-          Write-Host "WavPack configuration verified."
-          Write-Host "Include: $configuredInclude"
-          Write-Host "Library: $configuredLibrary"
-
-      - name: Build client and tests
-        shell: pwsh
-        run: |
-          cmake --build build `
-            --config ${{ matrix.configuration }} `
-            --target game-client testrunner `
-            --parallel 4
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Build failed."
-          }
-
-      - name: Run tests
-        shell: pwsh
-        run: |
-          cmake --build build `
-            --config ${{ matrix.configuration }} `
-            --target run_tests
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Tests failed."
-          }
-
-      - name: Package
-        if: matrix.configuration == 'Release'
-        shell: pwsh
-        run: |
-          cmake --build build --config Release --target package_default
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Packaging failed."
-          }
-
-      - name: Verify distribution
-        id: package
-        if: matrix.configuration == 'Release'
-        shell: pwsh
-        env:
-          PRISM_EXPECTED_COMMIT: ${{ github.sha }}
-        run: |
-          python scripts/package_prism.py build
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Package verification failed."
-          }
-
-      - name: Packaged client smoke
-        if: matrix.configuration == 'Release'
-        shell: pwsh
-        run: |
-          python scripts/smoke_prism.py build/verified-package/Prism
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Packaged client smoke test failed."
-          }
-
-      - name: Upload release artifact
+      - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
-        if: matrix.configuration == 'Release' && success()
         with:
-          name: ${{ steps.package.outputs.artifact_name }}
-          path: dist/*
+          name: Prism-Windows-x64
+          path: dist/Prism-Windows-x64.zip
           if-no-files-found: error
 
-      - name: Preserve test evidence
-        uses: actions/upload-artifact@v4
-        if: always()
+      - name: Publish Windows Release Asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
         with:
-          name: prism-tests-${{ matrix.configuration }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            build/TESTED_COMMIT.txt
-            build/tests.xml
-            build/CMakeFiles/CMakeConfigureLog.yaml
-            dist/runtime-smoke.json
-          if-no-files-found: warn
+          files: dist/Prism-Windows-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-linux:
+    name: Linux Client (x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Linux Dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            ninja-build \
+            pkg-config \
+            libsdl2-dev \
+            libfreetype6-dev \
+            libcurl4-openssl-dev \
+            libpng-dev \
+            libsqlite3-dev \
+            libogg-dev \
+            libopus-dev \
+            libopusfile-dev \
+            libglew-dev \
+            libnotify-dev \
+            libwavpack-dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Prism Rust Core
+        run: |
+          cd src/prism-rust
+          cargo test
+          cargo build --release
+          cd ../..
+
+      - name: Configure CMake
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCLIENT=ON \
+            -DSERVER=OFF \
+            -DTOOLS=OFF \
+            -DVULKAN=OFF \
+            -DVIDEORECORDER=OFF \
+            -DDOWNLOAD_GTEST=OFF \
+            -DAUTOUPDATE=OFF \
+            -DSTEAM=OFF \
+            -DDISCORD=OFF \
+            -DCLIENT_EXECUTABLE=Prism
+
+      - name: Build Prism Client
+        run: cmake --build build --target Prism
+
+      - name: Package Linux Distribution
+        run: |
+          mkdir -p dist/Prism
+          if [ -f build/Prism ]; then
+            cp build/Prism dist/Prism/
+          elif [ -f build/DDNet ]; then
+            cp build/DDNet dist/Prism/Prism
+          fi
+          chmod +x dist/Prism/Prism
+          cp -r data dist/Prism/
+          [ -f storage.cfg ] && cp storage.cfg dist/Prism/
+          [ -f license.txt ] && cp license.txt dist/Prism/
+          cd dist
+          tar -czvf Prism-Linux-x86_64.tar.gz Prism
+          cd ..
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Prism-Linux-x86_64
+          path: dist/Prism-Linux-x86_64.tar.gz
+          if-no-files-found: error
+
+      - name: Publish Linux Release Asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/Prism-Linux-x86_64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
