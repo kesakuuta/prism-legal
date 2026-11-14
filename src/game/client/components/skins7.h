@@ -41,7 +41,6 @@ public:
 		int m_Flags;
 		char m_aName[24];
 		IGraphics::CTextureHandle m_OriginalTexture;
-		IGraphics::CTextureHandle m_PrismMask;
 		IGraphics::CTextureHandle m_ColorableTexture;
 		ColorRGBA m_BloodColor;
 
@@ -123,4 +122,3 @@ private:
 };
 
 #endif
-

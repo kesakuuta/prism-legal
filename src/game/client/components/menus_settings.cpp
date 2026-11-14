@@ -1,4 +1,3 @@
-#include <algorithm>
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "menus.h"
@@ -25,8 +24,6 @@ void CMenus::SetNeedSendInfo()
 
 void CMenus::RenderSettings(CUIRect MainView)
 {
-	if(g_Config.m_UiSettingsPage < 0 || g_Config.m_UiSettingsPage >= SETTINGS_LENGTH)
-		g_Config.m_UiSettingsPage = SETTINGS_GENERAL;
 	// render background
 	CUIRect Button, TabBar, RestartBar;
 	MainView.VSplitRight(120.0f, &MainView, &TabBar);
@@ -54,14 +51,14 @@ void CMenus::RenderSettings(CUIRect MainView)
 		Localize("Sound"),
 		Localize("DDNet"),
 		Localize("Assets"),
+		Localize("T-Client"),
 		Localize("Credits")};
 	static CButtonContainer s_aTabButtons[SETTINGS_LENGTH];
 
-	const float TabHeight = std::min(26.0f, (TabBar.h - 4.0f * SETTINGS_LENGTH) / SETTINGS_LENGTH);
 	for(int i = 0; i < SETTINGS_LENGTH; i++)
 	{
-		TabBar.HSplitTop(4.0f, nullptr, &TabBar);
-		TabBar.HSplitTop(TabHeight, &Button, &TabBar);
+		TabBar.HSplitTop(10.0f, nullptr, &TabBar);
+		TabBar.HSplitTop(26.0f, &Button, &TabBar);
 		if(DoButton_MenuTab(&s_aTabButtons[i], apTabs[i], g_Config.m_UiSettingsPage == i, &Button, IGraphics::CORNER_R, &m_aAnimatorsSettingsTab[i]))
 			g_Config.m_UiSettingsPage = i;
 	}
@@ -118,6 +115,11 @@ void CMenus::RenderSettings(CUIRect MainView)
 	{
 		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_ASSETS);
 		RenderSettingsAssets(MainView);
+	}
+	else if(g_Config.m_UiSettingsPage == SETTINGS_TCLIENT)
+	{
+		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_LANGUAGE);
+		RenderSettingsTClient(MainView);
 	}
 	else if(g_Config.m_UiSettingsPage == SETTINGS_CREDITS)
 	{
@@ -187,12 +189,11 @@ bool CMenus::RenderHslaScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alp
 
 		// red to yellow
 		{
-			IGraphics::CColorVertex aColorVertices[] = {
-				IGraphics::CColorVertex(0, 1, 0, 0, 1),
-				IGraphics::CColorVertex(1, 1, 1, 0, 1),
-				IGraphics::CColorVertex(2, 1, 0, 0, 1),
-				IGraphics::CColorVertex(3, 1, 1, 0, 1)};
-			Graphics()->SetColorVertex(aColorVertices, std::size(aColorVertices));
+			Graphics()->SetColor4(
+				ColorRGBA(1, 0, 0, 1),
+				ColorRGBA(1, 1, 0, 1),
+				ColorRGBA(1, 1, 0, 1),
+				ColorRGBA(1, 0, 0, 1));
 
 			IGraphics::CFreeformItem Freeform(
 				CurXOff, pColorRect->y,
@@ -205,12 +206,11 @@ bool CMenus::RenderHslaScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alp
 		// yellow to green
 		CurXOff += SizeColor;
 		{
-			IGraphics::CColorVertex aColorVertices[] = {
-				IGraphics::CColorVertex(0, 1, 1, 0, 1),
-				IGraphics::CColorVertex(1, 0, 1, 0, 1),
-				IGraphics::CColorVertex(2, 1, 1, 0, 1),
-				IGraphics::CColorVertex(3, 0, 1, 0, 1)};
-			Graphics()->SetColorVertex(aColorVertices, std::size(aColorVertices));
+			Graphics()->SetColor4(
+				ColorRGBA(1, 1, 0, 1),
+				ColorRGBA(0, 1, 0, 1),
+				ColorRGBA(0, 1, 0, 1),
+				ColorRGBA(1, 1, 0, 1));
 
 			IGraphics::CFreeformItem Freeform(
 				CurXOff, pColorRect->y,
@@ -223,12 +223,11 @@ bool CMenus::RenderHslaScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alp
 		CurXOff += SizeColor;
 		// green to turquoise
 		{
-			IGraphics::CColorVertex aColorVertices[] = {
-				IGraphics::CColorVertex(0, 0, 1, 0, 1),
-				IGraphics::CColorVertex(1, 0, 1, 1, 1),
-				IGraphics::CColorVertex(2, 0, 1, 0, 1),
-				IGraphics::CColorVertex(3, 0, 1, 1, 1)};
-			Graphics()->SetColorVertex(aColorVertices, std::size(aColorVertices));
+			Graphics()->SetColor4(
+				ColorRGBA(0, 1, 0, 1),
+				ColorRGBA(0, 1, 1, 1),
+				ColorRGBA(0, 1, 1, 1),
+				ColorRGBA(0, 1, 0, 1));
 
 			IGraphics::CFreeformItem Freeform(
 				CurXOff, pColorRect->y,
@@ -241,12 +240,11 @@ bool CMenus::RenderHslaScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alp
 		CurXOff += SizeColor;
 		// turquoise to blue
 		{
-			IGraphics::CColorVertex aColorVertices[] = {
-				IGraphics::CColorVertex(0, 0, 1, 1, 1),
-				IGraphics::CColorVertex(1, 0, 0, 1, 1),
-				IGraphics::CColorVertex(2, 0, 1, 1, 1),
-				IGraphics::CColorVertex(3, 0, 0, 1, 1)};
-			Graphics()->SetColorVertex(aColorVertices, std::size(aColorVertices));
+			Graphics()->SetColor4(
+				ColorRGBA(0, 1, 1, 1),
+				ColorRGBA(0, 0, 1, 1),
+				ColorRGBA(0, 0, 1, 1),
+				ColorRGBA(0, 1, 1, 1));
 
 			IGraphics::CFreeformItem Freeform(
 				CurXOff, pColorRect->y,
@@ -259,12 +257,11 @@ bool CMenus::RenderHslaScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alp
 		CurXOff += SizeColor;
 		// blue to purple
 		{
-			IGraphics::CColorVertex aColorVertices[] = {
-				IGraphics::CColorVertex(0, 0, 0, 1, 1),
-				IGraphics::CColorVertex(1, 1, 0, 1, 1),
-				IGraphics::CColorVertex(2, 0, 0, 1, 1),
-				IGraphics::CColorVertex(3, 1, 0, 1, 1)};
-			Graphics()->SetColorVertex(aColorVertices, std::size(aColorVertices));
+			Graphics()->SetColor4(
+				ColorRGBA(0, 0, 1, 1),
+				ColorRGBA(1, 0, 1, 1),
+				ColorRGBA(1, 0, 1, 1),
+				ColorRGBA(0, 0, 1, 1));
 
 			IGraphics::CFreeformItem Freeform(
 				CurXOff, pColorRect->y,
@@ -277,12 +274,11 @@ bool CMenus::RenderHslaScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alp
 		CurXOff += SizeColor;
 		// purple to red
 		{
-			IGraphics::CColorVertex aColorVertices[] = {
-				IGraphics::CColorVertex(0, 1, 0, 1, 1),
-				IGraphics::CColorVertex(1, 1, 0, 0, 1),
-				IGraphics::CColorVertex(2, 1, 0, 1, 1),
-				IGraphics::CColorVertex(3, 1, 0, 0, 1)};
-			Graphics()->SetColorVertex(aColorVertices, std::size(aColorVertices));
+			Graphics()->SetColor4(
+				ColorRGBA(1, 0, 1, 1),
+				ColorRGBA(1, 0, 0, 1),
+				ColorRGBA(1, 0, 0, 1),
+				ColorRGBA(1, 0, 1, 1));
 
 			IGraphics::CFreeformItem Freeform(
 				CurXOff, pColorRect->y,
@@ -411,4 +407,3 @@ bool CMenus::RenderHslaScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alp
 	}
 	return PrevPackedColor != *pColor;
 }
-

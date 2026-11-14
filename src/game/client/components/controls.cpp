@@ -18,12 +18,14 @@
 #include <game/client/components/scoreboard.h>
 #include <game/client/gameclient.h>
 #include <game/collision.h>
+#include <game/localization.h>
 
 #include <algorithm>
 
 CControls::CControls()
 {
 	mem_zero(&m_aLastData, sizeof(m_aLastData));
+	std::fill(std::begin(m_aMouseOnAction), std::end(m_aMouseOnAction), false);
 	std::fill(std::begin(m_aMousePos), std::end(m_aMousePos), vec2(0.0f, 0.0f));
 	std::fill(std::begin(m_aMousePosOnAction), std::end(m_aMousePosOnAction), vec2(0.0f, 0.0f));
 	std::fill(std::begin(m_aTargetPos), std::end(m_aTargetPos), vec2(0.0f, 0.0f));
@@ -34,14 +36,8 @@ void CControls::OnReset()
 {
 	ResetInput(0);
 	ResetInput(1);
-	for(int Dummy = 0; Dummy < NUM_DUMMIES; ++Dummy)
-	{
-		m_aPrismFire[Dummy].Reset(m_aInputData[Dummy].m_Fire, INPUT_STATE_MASK);
-		m_aPrismLastOutput[Dummy] = m_aInputData[Dummy];
-	}
 
-	for(int &AmmoCount : m_aAmmoCount)
-		AmmoCount = 0;
+	std::fill(std::begin(m_aAmmoCount), std::end(m_aAmmoCount), 0);
 
 	m_LastSendTime = 0;
 }
@@ -62,14 +58,14 @@ void CControls::ResetInput(int Dummy)
 
 void CControls::OnPlayerDeath()
 {
-	for(int &AmmoCount : m_aAmmoCount)
-		AmmoCount = 0;
+	std::fill(std::begin(m_aAmmoCount), std::end(m_aAmmoCount), 0);
 }
 
 struct CInputState
 {
 	CControls *m_pControls;
 	int *m_apVariables[NUM_DUMMIES];
+	bool m_IsMouseAction;
 };
 
 void CControls::ConKeyInputState(IConsole::IResult *pResult, void *pUserData)
@@ -79,7 +75,11 @@ void CControls::ConKeyInputState(IConsole::IResult *pResult, void *pUserData)
 	if(pState->m_pControls->GameClient()->m_GameInfo.m_BugDDRaceInput && pState->m_pControls->GameClient()->m_Snap.m_SpecInfo.m_Active)
 		return;
 
-	*pState->m_apVariables[g_Config.m_ClDummy] = pResult->GetInteger(0);
+	const int Stroke = pResult->GetInteger(0);
+	*pState->m_apVariables[g_Config.m_ClDummy] = Stroke;
+
+	if(Stroke != 0 && pState->m_IsMouseAction && g_Config.m_ClSubTickAiming && pState->m_pControls->GameClient()->m_Binds.m_HandlingNewBind)
+		pState->m_pControls->m_aMouseOnAction[g_Config.m_ClDummy] = true;
 }
 
 void CControls::ConKeyInputCounter(IConsole::IResult *pResult, void *pUserData)
@@ -90,8 +90,13 @@ void CControls::ConKeyInputCounter(IConsole::IResult *pResult, void *pUserData)
 		return;
 
 	int *pVariable = pState->m_apVariables[g_Config.m_ClDummy];
-	if(((*pVariable) & 1) != pResult->GetInteger(0))
+	const int Stroke = pResult->GetInteger(0);
+	if(((*pVariable) & 1) != Stroke)
+	{
 		(*pVariable)++;
+		if(Stroke != 0 && pState->m_IsMouseAction && g_Config.m_ClSubTickAiming && pState->m_pControls->GameClient()->m_Binds.m_HandlingNewBind)
+			pState->m_pControls->m_aMouseOnAction[g_Config.m_ClDummy] = true;
+	}
 	*pVariable &= INPUT_STATE_MASK;
 }
 
@@ -122,27 +127,27 @@ void CControls::OnConsoleInit()
 {
 	// game commands
 	{
-		static CInputState s_State = {this, {&m_aInputDirectionLeft[0], &m_aInputDirectionLeft[1]}};
+		static CInputState s_State = {this, {&m_aInputDirectionLeft[0], &m_aInputDirectionLeft[1]}, false};
 		Console()->Register("+left", "", CFGFLAG_CLIENT, ConKeyInputState, &s_State, "Move left");
 	}
 	{
-		static CInputState s_State = {this, {&m_aInputDirectionRight[0], &m_aInputDirectionRight[1]}};
+		static CInputState s_State = {this, {&m_aInputDirectionRight[0], &m_aInputDirectionRight[1]}, false};
 		Console()->Register("+right", "", CFGFLAG_CLIENT, ConKeyInputState, &s_State, "Move right");
 	}
 	{
-		static CInputState s_State = {this, {&m_aInputData[0].m_Jump, &m_aInputData[1].m_Jump}};
+		static CInputState s_State = {this, {&m_aInputData[0].m_Jump, &m_aInputData[1].m_Jump}, false};
 		Console()->Register("+jump", "", CFGFLAG_CLIENT, ConKeyInputState, &s_State, "Jump");
 	}
 	{
-		static CInputState s_State = {this, {&m_aInputData[0].m_Hook, &m_aInputData[1].m_Hook}};
+		static CInputState s_State = {this, {&m_aInputData[0].m_Hook, &m_aInputData[1].m_Hook}, true};
 		Console()->Register("+hook", "", CFGFLAG_CLIENT, ConKeyInputState, &s_State, "Hook");
 	}
 	{
-		static CInputState s_State = {this, {&m_aInputData[0].m_Fire, &m_aInputData[1].m_Fire}};
+		static CInputState s_State = {this, {&m_aInputData[0].m_Fire, &m_aInputData[1].m_Fire}, true};
 		Console()->Register("+fire", "", CFGFLAG_CLIENT, ConKeyInputCounter, &s_State, "Fire");
 	}
 	{
-		static CInputState s_State = {this, {&m_aShowHookColl[0], &m_aShowHookColl[1]}};
+		static CInputState s_State = {this, {&m_aShowHookColl[0], &m_aShowHookColl[1]}, false};
 		Console()->Register("+showhookcoll", "", CFGFLAG_CLIENT, ConKeyInputState, &s_State, "Show Hook Collision");
 	}
 
@@ -175,6 +180,50 @@ void CControls::OnConsoleInit()
 		static CInputSet s_Set = {this, {&m_aInputData[0].m_PrevWeapon, &m_aInputData[1].m_PrevWeapon}, 0};
 		Console()->Register("+prevweapon", "", CFGFLAG_CLIENT, ConKeyInputNextPrevWeapon, &s_Set, "Switch to previous weapon");
 	}
+
+	Console()->Register("tp_to_cursor", "", CFGFLAG_CLIENT, ConTpToCursor, this, "Practice: teleport yourself to your cursor");
+	Console()->Register("tp_dummy_to_cursor", "", CFGFLAG_CLIENT, ConTpDummyToCursor, this, "Practice: teleport the other tee to your cursor");
+}
+
+void CControls::ConTpToCursor(IConsole::IResult *pResult, void *pUserData)
+{
+	CControls *pSelf = (CControls *)pUserData;
+	if(pSelf->Client()->State() != IClient::STATE_ONLINE)
+		return;
+
+	pSelf->SendPracticeTeleportToCursor(g_Config.m_ClDummy ? IClient::CONN_DUMMY : IClient::CONN_MAIN);
+}
+
+void CControls::ConTpDummyToCursor(IConsole::IResult *pResult, void *pUserData)
+{
+	CControls *pSelf = (CControls *)pUserData;
+	if(pSelf->Client()->State() != IClient::STATE_ONLINE)
+		return;
+
+	if(!pSelf->Client()->DummyConnected())
+	{
+		pSelf->GameClient()->Echo(Localize("Dummy is not connected"));
+		return;
+	}
+
+	// Send on the inactive connection; the server only teleports the sender.
+	pSelf->SendPracticeTeleportToCursor(g_Config.m_ClDummy ? IClient::CONN_MAIN : IClient::CONN_DUMMY);
+}
+
+vec2 CControls::CursorWorldPos() const
+{
+	const vec2 Center = GameClient()->m_Camera.m_Center;
+	const vec2 TargetPos = m_aTargetPos[g_Config.m_ClDummy];
+	return Center + (TargetPos - Center) * GameClient()->m_Camera.m_Zoom;
+}
+
+void CControls::SendPracticeTeleportToCursor(int Conn)
+{
+	const vec2 CursorPos = CursorWorldPos();
+	CNetMsg_Cl_PracticeTeleport Msg;
+	Msg.m_X = round_to_int(CursorPos.x);
+	Msg.m_Y = round_to_int(CursorPos.y);
+	Client()->SendPackMsg(Conn, &Msg, MSGFLAG_VITAL);
 }
 
 void CControls::OnMessage(int Msg, void *pRawMsg)
@@ -194,7 +243,7 @@ int CControls::SnapInput(int *pData)
 	// update player state
 	if(GameClient()->m_Chat.IsActive())
 		m_aInputData[g_Config.m_ClDummy].m_PlayerFlags = PLAYERFLAG_CHATTING;
-	else if(GameClient()->m_Menus.IsActive() || GameClient()->m_Menus.IsPrismOpen())
+	else if(GameClient()->m_Menus.IsActive())
 		m_aInputData[g_Config.m_ClDummy].m_PlayerFlags = PLAYERFLAG_IN_MENU;
 	else
 		m_aInputData[g_Config.m_ClDummy].m_PlayerFlags = PLAYERFLAG_PLAYING;
@@ -333,41 +382,15 @@ int CControls::SnapInput(int *pData)
 		Send = Send || (GameClient()->m_Snap.m_pLocalCharacter && GameClient()->m_Snap.m_pLocalCharacter->m_Weapon == WEAPON_NINJA && (m_aInputData[g_Config.m_ClDummy].m_Direction || m_aInputData[g_Config.m_ClDummy].m_Jump || m_aInputData[g_Config.m_ClDummy].m_Hook));
 	}
 
-	// Keep physical input and DDNet dummy-copy deltas free of synthetic holds.
- const int Dummy = g_Config.m_ClDummy;
- const bool Allowed = GameClient()->PrismInputAllowed();
- if(!Allowed)
-  GameClient()->m_PrismMacros.Cancel();
-	CNetObj_PlayerInput PrismComposedInput = m_aInputData[Dummy];
- const int Owned = Allowed ? GameClient()->m_PrismMacros.Owned() : 0;
- if(PrismComposedInput.m_Direction == 0)
- {
-  if((Owned & PrismQol::OWN_LEFT) && !(Owned & PrismQol::OWN_RIGHT)) PrismComposedInput.m_Direction = -1;
-  if((Owned & PrismQol::OWN_RIGHT) && !(Owned & PrismQol::OWN_LEFT)) PrismComposedInput.m_Direction = 1;
- }
- if(Owned & PrismQol::OWN_JUMP) PrismComposedInput.m_Jump = 1;
- if(Owned & PrismQol::OWN_HOOK) PrismComposedInput.m_Hook = 1;
- const bool Pulse = Allowed && GameClient()->m_PrismMacros.TakeFirePulse();
-	// Physical Hook ownership is passed separately from macro/synthetic Hook.
-	GameClient()->PrismComposeAssist(PrismComposedInput, m_aInputData[Dummy].m_Direction,
-		m_aInputData[Dummy].m_Jump != 0, (Owned & (PrismQol::OWN_LEFT | PrismQol::OWN_RIGHT)) != 0,
-		m_aInputData[Dummy].m_Hook != 0, (Owned & PrismQol::OWN_HOOK) != 0);
-	PrismComposedInput.m_Fire = m_aPrismFire[Dummy].Compose(m_aInputData[Dummy].m_Fire, Pulse, INPUT_STATE_MASK);
-	Send = Send || PrismComposedInput.m_Direction != m_aPrismLastOutput[Dummy].m_Direction;
-	Send = Send || PrismComposedInput.m_Jump != m_aPrismLastOutput[Dummy].m_Jump;
-	Send = Send || PrismComposedInput.m_Hook != m_aPrismLastOutput[Dummy].m_Hook;
-	Send = Send || PrismComposedInput.m_Fire != m_aPrismLastOutput[Dummy].m_Fire;
-	Send = Send || PrismComposedInput.m_TargetX != m_aPrismLastOutput[Dummy].m_TargetX || PrismComposedInput.m_TargetY != m_aPrismLastOutput[Dummy].m_TargetY;
-	// Preserve the DDNet physical input state and its original dummy-copy deltas.
-	m_aLastData[Dummy] = m_aInputData[Dummy];
+	// copy and return size
+	m_aLastData[g_Config.m_ClDummy] = m_aInputData[g_Config.m_ClDummy];
 
 	if(!Send)
 		return 0;
 
-	m_aPrismLastOutput[Dummy] = PrismComposedInput;
 	m_LastSendTime = time_get();
-	mem_copy(pData, &PrismComposedInput, sizeof(PrismComposedInput));
-	return sizeof(PrismComposedInput);
+	mem_copy(pData, &m_aInputData[g_Config.m_ClDummy], sizeof(m_aInputData[0]));
+	return sizeof(m_aInputData[0]);
 }
 
 void CControls::OnRender()

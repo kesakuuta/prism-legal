@@ -11,6 +11,7 @@
 
 #include <chrono>
 #include <iterator> // std::size
+#include <limits>
 #include <string_view>
 
 #if defined(CONF_WEBSOCKETS)
@@ -62,6 +63,9 @@ typedef struct
 #endif
 } NETSOCKET_BUFFER;
 
+static constexpr const unsigned char LOOPBACKADDR_IPV4[16] = {127, 0, 0, 1};
+static constexpr const unsigned char LOOPBACKADDR_IPV6[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
+
 static void net_buffer_init(NETSOCKET_BUFFER *buffer)
 {
 #if defined(CONF_PLATFORM_LINUX)
@@ -112,10 +116,11 @@ struct NETSOCKET_INTERNAL
 	int ipv6sock;
 	int web_ipv4sock;
 	int web_ipv6sock;
+	bool broken;
 
 	NETSOCKET_BUFFER buffer;
 };
-static NETSOCKET_INTERNAL invalid_socket = {NETTYPE_INVALID, -1, -1, -1, -1};
+static NETSOCKET_INTERNAL invalid_socket = {NETTYPE_INVALID, -1, -1, -1, -1, false};
 
 const NETADDR NETADDR_ZEROED = {NETTYPE_INVALID, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0};
 
@@ -306,28 +311,28 @@ void net_addr_str(const NETADDR *addr, char *string, int max_length, bool add_po
 	}
 }
 
-static int parse_int(int *out, const char **str)
+template<typename T>
+static int parse_uint(T *out, const char **str)
 {
-	int i = 0;
+	static_assert(std::numeric_limits<T>::max() <= (std::numeric_limits<int>::max() - 9) / 10);
 	*out = 0;
 	if(!str_isnum(**str))
 		return -1;
+	// A leading zero means octal to inet_aton and friends, reject it rather than
+	// read the same string as a different address than the system does
+	if(**str == '0' && str_isnum(*(*str + 1)))
+		return -1;
 
-	i = **str - '0';
-	(*str)++;
-
-	while(true)
+	int i = 0;
+	while(str_isnum(**str))
 	{
-		if(!str_isnum(**str))
-		{
-			*out = i;
-			return 0;
-		}
-
 		i = (i * 10) + (**str - '0');
+		if(i > std::numeric_limits<T>::max())
+			return -1;
 		(*str)++;
 	}
 
+	*out = i;
 	return 0;
 }
 
@@ -336,28 +341,6 @@ static int parse_char(char c, const char **str)
 	if(**str != c)
 		return -1;
 	(*str)++;
-	return 0;
-}
-
-static int parse_uint8(unsigned char *out, const char **str)
-{
-	int i;
-	if(parse_int(&i, str) != 0)
-		return -1;
-	if(i < 0 || i > 0xff)
-		return -1;
-	*out = i;
-	return 0;
-}
-
-static int parse_uint16(unsigned short *out, const char **str)
-{
-	int i;
-	if(parse_int(&i, str) != 0)
-		return -1;
-	if(i < 0 || i > 0xffff)
-		return -1;
-	*out = i;
 	return 0;
 }
 
@@ -412,16 +395,21 @@ int net_addr_from_url(NETADDR *addr, const char *string, char *host_buf, size_t 
 
 bool net_addr_is_local(const NETADDR *addr)
 {
-	char addr_str[NETADDR_MAXSTRSIZE];
-	net_addr_str(addr, addr_str, sizeof(addr_str), true);
+	if((addr->type & (NETTYPE_IPV4 | NETTYPE_WEBSOCKET_IPV4)) != 0)
+	{
+		return addr->ip[0] == 127 ||
+		       addr->ip[0] == 10 ||
+		       (addr->ip[0] == 192 && addr->ip[1] == 168) ||
+		       (addr->ip[0] == 172 && (addr->ip[1] >= 16 && addr->ip[1] <= 31));
+	}
+	if((addr->type & (NETTYPE_IPV6 | NETTYPE_WEBSOCKET_IPV6)) != 0)
+	{
+		return (addr->ip[0] == 0xfe && (addr->ip[1] >= 0x80 && addr->ip[1] <= 0xbf)) ||
+		       (addr->ip[0] >= 0xfc && addr->ip[0] <= 0xfd) ||
+		       mem_comp(addr->ip, LOOPBACKADDR_IPV6, sizeof(LOOPBACKADDR_IPV6)) == 0;
+	}
 
-	if(addr->ip[0] == 127 || addr->ip[0] == 10 || (addr->ip[0] == 192 && addr->ip[1] == 168) || (addr->ip[0] == 172 && (addr->ip[1] >= 16 && addr->ip[1] <= 31)))
-		return true;
-
-	if(str_startswith(addr_str, "[fe80:") || str_startswith(addr_str, "[::1"))
-		return true;
-
-	return false;
+	dbg_assert_failed("unknown NETADDR type %d", addr->type);
 }
 
 int net_addr_from_str(NETADDR *addr, const char *string)
@@ -462,7 +450,7 @@ int net_addr_from_str(NETADDR *addr, const char *string)
 			if(*str == ':')
 			{
 				str++;
-				if(parse_uint16(&addr->port, &str))
+				if(parse_uint(&addr->port, &str))
 					return -1;
 			}
 			else
@@ -478,24 +466,24 @@ int net_addr_from_str(NETADDR *addr, const char *string)
 	else
 	{
 		/* ipv4 */
-		if(parse_uint8(&addr->ip[0], &str))
+		if(parse_uint(&addr->ip[0], &str))
 			return -1;
 		if(parse_char('.', &str))
 			return -1;
-		if(parse_uint8(&addr->ip[1], &str))
+		if(parse_uint(&addr->ip[1], &str))
 			return -1;
 		if(parse_char('.', &str))
 			return -1;
-		if(parse_uint8(&addr->ip[2], &str))
+		if(parse_uint(&addr->ip[2], &str))
 			return -1;
 		if(parse_char('.', &str))
 			return -1;
-		if(parse_uint8(&addr->ip[3], &str))
+		if(parse_uint(&addr->ip[3], &str))
 			return -1;
 		if(*str == ':')
 		{
 			str++;
-			if(parse_uint16(&addr->port, &str))
+			if(parse_uint(&addr->port, &str))
 				return -1;
 		}
 		if(*str != '\0')
@@ -547,20 +535,23 @@ static int net_host_lookup_fallback(const char *hostname, NETADDR *addr, int typ
 	{
 		if(types == NETTYPE_IPV4)
 		{
-			dbg_assert(net_addr_from_str(addr, "127.0.0.1") == 0, "unreachable");
+			addr->type = NETTYPE_IPV4;
+			mem_copy(addr->ip, LOOPBACKADDR_IPV4, sizeof(LOOPBACKADDR_IPV4));
 			addr->port = port;
 			return 0;
 		}
 		else if(types == NETTYPE_IPV6)
 		{
-			dbg_assert(net_addr_from_str(addr, "[::1]") == 0, "unreachable");
+			addr->type = NETTYPE_IPV6;
+			mem_copy(addr->ip, LOOPBACKADDR_IPV6, sizeof(LOOPBACKADDR_IPV6));
 			addr->port = port;
 			return 0;
 		}
 		else
 		{
 			// TODO: return both IPv4 and IPv6 address
-			dbg_assert(net_addr_from_str(addr, "127.0.0.1") == 0, "unreachable");
+			addr->type = NETTYPE_IPV4;
+			mem_copy(addr->ip, LOOPBACKADDR_IPV4, sizeof(LOOPBACKADDR_IPV4));
 			addr->port = port;
 			return 0;
 		}
@@ -591,13 +582,13 @@ static int net_host_lookup_impl(const char *hostname, NETADDR *addr, int types)
 	int e = getaddrinfo(host, nullptr, &hints, &result);
 	if(!result)
 	{
-		return net_host_lookup_fallback(hostname, addr, types, port);
+		return net_host_lookup_fallback(host, addr, types, port);
 	}
 
 	if(e != 0)
 	{
 		freeaddrinfo(result);
-		return net_host_lookup_fallback(hostname, addr, types, port);
+		return net_host_lookup_fallback(host, addr, types, port);
 	}
 
 	sockaddr_to_netaddr(result->ai_addr, result->ai_addrlen, addr);
@@ -720,6 +711,15 @@ int net_would_block()
 #endif
 }
 
+static bool net_address_in_use()
+{
+#if defined(CONF_FAMILY_WINDOWS)
+	return net_errno() == WSAEADDRINUSE;
+#else
+	return net_errno() == EADDRINUSE;
+#endif
+}
+
 int net_socket_read_wait(NETSOCKET sock, std::chrono::nanoseconds nanoseconds)
 {
 	const int64_t microseconds = std::chrono::duration_cast<std::chrono::microseconds>(nanoseconds).count();
@@ -827,7 +827,9 @@ static void priv_net_close_all_sockets(NETSOCKET sock)
 	free(sock);
 }
 
-static int priv_net_create_socket(int domain, int type, const NETADDR *bindaddr)
+// `address_in_use` is only ever set to `true`, so the same variable can be
+// passed for all sockets of one `NETSOCKET`.
+static int priv_net_create_socket(int domain, int type, const NETADDR *bindaddr, bool *address_in_use)
 {
 	int sock = socket(domain, type, 0);
 	if(sock < 0)
@@ -838,7 +840,7 @@ static int priv_net_create_socket(int domain, int type, const NETADDR *bindaddr)
 
 #if defined(CONF_FAMILY_UNIX)
 	// On TCP sockets set SO_REUSEADDR to fix port rebind on restart
-	if(domain == AF_INET && type == SOCK_STREAM)
+	if(type == SOCK_STREAM)
 	{
 		int reuse_addr = 1;
 		if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char *)&reuse_addr, sizeof(reuse_addr)) != 0)
@@ -889,6 +891,10 @@ static int priv_net_create_socket(int domain, int type, const NETADDR *bindaddr)
 
 	if(bind(sock, (sockaddr *)&addr, addr_len) != 0)
 	{
+		if(net_address_in_use())
+		{
+			*address_in_use = true;
+		}
 		log_error("net", "Failed to bind socket with domain %d and type %d (%s)", domain, type, net_error_message().c_str());
 		priv_net_close_socket(sock);
 		return -1;
@@ -901,12 +907,13 @@ NETSOCKET net_udp_create(NETADDR bindaddr)
 {
 	NETSOCKET sock = (NETSOCKET_INTERNAL *)malloc(sizeof(*sock));
 	*sock = invalid_socket;
+	bool address_in_use = false;
 
 	if(bindaddr.type & NETTYPE_IPV4)
 	{
 		NETADDR bindaddr_ipv4 = bindaddr;
 		bindaddr_ipv4.type = NETTYPE_IPV4;
-		const int socket = priv_net_create_socket(AF_INET, SOCK_DGRAM, &bindaddr_ipv4);
+		const int socket = priv_net_create_socket(AF_INET, SOCK_DGRAM, &bindaddr_ipv4, &address_in_use);
 		if(socket >= 0)
 		{
 			sock->type |= NETTYPE_IPV4;
@@ -923,7 +930,7 @@ NETSOCKET net_udp_create(NETADDR bindaddr)
 
 			// Set DSCP/TOS
 			{
-				int iptos = 0x10; // IPTOS_LOWDELAY
+				int iptos = 0xB8; // IPTOS_DSCP_EF, expedited forwarding
 				if(setsockopt(socket, IPPROTO_IP, IP_TOS, (const char *)&iptos, sizeof(iptos)) != 0)
 				{
 					log_error("net", "Setting IP_TOS on IPv4 failed (%s)", net_error_message().c_str());
@@ -950,7 +957,7 @@ NETSOCKET net_udp_create(NETADDR bindaddr)
 	{
 		NETADDR bindaddr_ipv6 = bindaddr;
 		bindaddr_ipv6.type = NETTYPE_IPV6;
-		const int socket = priv_net_create_socket(AF_INET6, SOCK_DGRAM, &bindaddr_ipv6);
+		const int socket = priv_net_create_socket(AF_INET6, SOCK_DGRAM, &bindaddr_ipv6, &address_in_use);
 		if(socket >= 0)
 		{
 			sock->type |= NETTYPE_IPV6;
@@ -969,10 +976,10 @@ NETSOCKET net_udp_create(NETADDR bindaddr)
 			// TODO: setting IP_TOS on ipv6 with setsockopt is not supported on Windows, see https://github.com/ddnet/ddnet/issues/7605
 #if !defined(CONF_FAMILY_WINDOWS)
 			{
-				int iptos = 0x10; // IPTOS_LOWDELAY
-				if(setsockopt(socket, IPPROTO_IP, IP_TOS, (const char *)&iptos, sizeof(iptos)) != 0)
+				int tclass = 0xB8; // IPTOS_DSCP_EF, expedited forwarding
+				if(setsockopt(socket, IPPROTO_IPV6, IPV6_TCLASS, (const char *)&tclass, sizeof(tclass)) != 0)
 				{
-					log_error("net", "Setting IP_TOS on IPv6 failed (%s)", net_error_message().c_str());
+					log_error("net", "Setting IPV6_TCLASS failed (%s)", net_error_message().c_str());
 				}
 			}
 #endif
@@ -993,9 +1000,9 @@ NETSOCKET net_udp_create(NETADDR bindaddr)
 	}
 #endif
 
-	if(sock->type == NETTYPE_INVALID)
+	if(sock->type == NETTYPE_INVALID || address_in_use)
 	{
-		free(sock);
+		priv_net_close_all_sockets(sock);
 		sock = nullptr;
 	}
 	else
@@ -1005,6 +1012,20 @@ NETSOCKET net_udp_create(NETADDR bindaddr)
 	}
 
 	return sock;
+}
+
+static void priv_net_udp_send_failed(NETSOCKET sock, const NETADDR *addr)
+{
+	// iOS closes the sockets of apps while they are suspended. Sending on such
+	// a socket keeps failing with EPIPE until the socket is recreated.
+	if(sock->broken || net_errno() != EPIPE)
+	{
+		return;
+	}
+	sock->broken = true;
+	char aAddr[NETADDR_MAXSTRSIZE];
+	net_addr_str(addr, aAddr, sizeof(aAddr), true);
+	log_error("net", "Socket was closed by the operating system, sending to %s failed (%s)", aAddr, net_error_message().c_str());
 }
 
 int net_udp_send(NETSOCKET sock, const NETADDR *addr, const void *data, int size)
@@ -1029,6 +1050,10 @@ int net_udp_send(NETSOCKET sock, const NETADDR *addr, const void *data, int size
 			}
 
 			d = sendto(sock->ipv4sock, (const char *)data, size, 0, (sockaddr *)&sa, sizeof(sa));
+			if(d < 0)
+			{
+				priv_net_udp_send_failed(sock, addr);
+			}
 		}
 		else
 		{
@@ -1077,6 +1102,10 @@ int net_udp_send(NETSOCKET sock, const NETADDR *addr, const void *data, int size
 			}
 
 			d = sendto(sock->ipv6sock, (const char *)data, size, 0, (sockaddr *)&sa, sizeof(sa));
+			if(d < 0)
+			{
+				priv_net_udp_send_failed(sock, addr);
+			}
 		}
 		else
 		{
@@ -1221,6 +1250,11 @@ int net_udp_recv(NETSOCKET sock, NETADDR *addr, unsigned char **data)
 	return bytes < 0 ? -1 : 0;
 }
 
+bool net_udp_is_broken(NETSOCKET sock)
+{
+	return sock->broken;
+}
+
 void net_udp_close(NETSOCKET sock)
 {
 	priv_net_close_all_sockets(sock);
@@ -1230,12 +1264,13 @@ NETSOCKET net_tcp_create(NETADDR bindaddr)
 {
 	NETSOCKET sock = (NETSOCKET_INTERNAL *)malloc(sizeof(*sock));
 	*sock = invalid_socket;
+	bool address_in_use = false;
 
 	if(bindaddr.type & NETTYPE_IPV4)
 	{
 		NETADDR bindaddr_ipv4 = bindaddr;
 		bindaddr_ipv4.type = NETTYPE_IPV4;
-		const int socket4 = priv_net_create_socket(AF_INET, SOCK_STREAM, &bindaddr_ipv4);
+		const int socket4 = priv_net_create_socket(AF_INET, SOCK_STREAM, &bindaddr_ipv4, &address_in_use);
 		if(socket4 >= 0)
 		{
 			sock->type |= NETTYPE_IPV4;
@@ -1247,7 +1282,7 @@ NETSOCKET net_tcp_create(NETADDR bindaddr)
 	{
 		NETADDR bindaddr_ipv6 = bindaddr;
 		bindaddr_ipv6.type = NETTYPE_IPV6;
-		const int socket6 = priv_net_create_socket(AF_INET6, SOCK_STREAM, &bindaddr_ipv6);
+		const int socket6 = priv_net_create_socket(AF_INET6, SOCK_STREAM, &bindaddr_ipv6, &address_in_use);
 		if(socket6 >= 0)
 		{
 			sock->type |= NETTYPE_IPV6;
@@ -1255,9 +1290,9 @@ NETSOCKET net_tcp_create(NETADDR bindaddr)
 		}
 	}
 
-	if(sock->type == NETTYPE_INVALID)
+	if(sock->type == NETTYPE_INVALID || address_in_use)
 	{
-		free(sock);
+		priv_net_close_all_sockets(sock);
 		sock = nullptr;
 	}
 

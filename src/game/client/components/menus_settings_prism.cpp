@@ -219,10 +219,10 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
 	Content.Draw(Theme.m_Background.WithAlpha(0.83f * Fade), IGraphics::CORNER_ALL, 8.0f);
 	Content.Margin(8.0f, &Content);
 
-	static const char *s_apTabs[] = {"Visuals", "HUD", "Input", "QoL", "Macros", "Themes", "Settings", "Assist"};
-	static CButtonContainer s_aTabs[8];
-	static float s_aTabBlend[8] = {};
-	for(int i = 0; i < 8; ++i)
+	static const char *s_apTabs[] = {"Visuals", "Hat", "HUD", "Input", "Themes", "Settings"};
+	static CButtonContainer s_aTabs[6];
+	static float s_aTabBlend[6] = {};
+	for(int i = 0; i < 6; ++i)
 	{
 		CUIRect Tab;
 		Sidebar.HSplitTop(29.0f, &Tab, &Sidebar);
@@ -238,7 +238,7 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
 		}
 	}
 
-	static CScrollRegion s_aScroll[8];
+	static CScrollRegion s_aScroll[6];
 	CUIRect ScrollView = Content;
 	CScrollRegion &Scroll = s_aScroll[m_PrismCategory];
 	Scroll.Begin(&ScrollView);
@@ -254,9 +254,9 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
 		if(!Scroll.RectClipped(Row))
 			Ui()->DoLabel(&Row, pLabel, 12.0f, TEXTALIGN_ML);
 	};
-	static float s_aaToggleProgress[8][96] = {};
-	static float s_aaToggleHover[8][96] = {};
-	static bool s_aaToggleInitialized[8][96] = {};
+	static float s_aaToggleProgress[6][96] = {};
+	static float s_aaToggleHover[6][96] = {};
+	static bool s_aaToggleInitialized[6][96] = {};
 	int ToggleIndex = 0;
 	auto Toggle = [&](const char *pLabel, int *pValue) {
 		CUIRect Row = NextRow(29.0f);
@@ -324,60 +324,9 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
             m_PrismCaptureBind == Target ? "PRESS A KEY (Esc unbinds)" : (*pValue ? Input()->KeyName(*pValue) : "Unbound"));
         if(Button(aText, ButtonId)) m_PrismCaptureBind = Target;
     };
-    switch(m_PrismCategory)
-    {
-    case 7: // Bounded local prediction and input assistance
-        Label("Assist   /   local prediction");
-        Toggle("Hook Assist (hold Hook)", &g_Config.m_PrismHookAssist);
-        Slider("Hook target FOV (degrees)", &g_Config.m_PrismHookFov, 5, 180);
-        Slider("Hook target range", &g_Config.m_PrismHookRange, 64, 1200);
-        Slider("Hook correction (%)", &g_Config.m_PrismHookStrength, 1, 100);
-        Slider("Lead target (ticks)", &g_Config.m_PrismHookPrediction, 0, 12);
-        Toggle("Hook Assist debug", &g_Config.m_PrismHookDebug);
-        Label("Freeze Avoid   /   only when needed");
-        if(Button(g_Config.m_PrismFreezeAvoid == 0 ? "Freeze Avoid: Off" :
-                g_Config.m_PrismFreezeAvoid == 1 ? "Freeze Avoid: Warning" : "Freeze Avoid: Assist", 30))
-            g_Config.m_PrismFreezeAvoid = (g_Config.m_PrismFreezeAvoid + 1) % 3;
-        Slider("Prediction horizon (ticks)", &g_Config.m_PrismFreezeHorizon, 4, 24);
-        Toggle("Show trajectory debug", &g_Config.m_PrismFreezeDebug);
-        Label("Manual direction and macros retain priority.");
-        break;
-    case 6: // Settings and status
-    {
-        Label("Prism   /   Control center");
-        Toggle("Enable Prism visuals", &g_Config.m_PrismEnabled);
-        Toggle("Double Tee assistant", &g_Config.m_PrismDoubleEnabled);
-        Toggle("Modular HUD", &g_Config.m_PrismHudEnabled);
-        char aStatus[128];
-        str_format(aStatus, sizeof(aStatus), "Dummy: %s   |   Active macros: %d",
-            Client()->DummyConnected() ? "connected" : "offline", GameClient()->m_PrismMacros.ActiveCount());
-        Label(aStatus);
-        Label("Insert / Esc: close     F12: emergency stop");
-        if(Button("EMERGENCY STOP — release Prism inputs", 0, ColorRGBA(0.65f, 0.28f, 0.29f, 0.35f)))
-            GameClient()->PrismEmergencyStop();
-        Label("Performance   /   measured locally");
-        Toggle("FPS and frame-time overlay", &g_Config.m_PrismOverlay);
-        Toggle("Performance HUD panel", &g_Config.m_PrismHudPerformance);
-        Slider("Menu scale", &g_Config.m_PrismMenuScale, 80, 120);
-        Slider("Glass opacity", &g_Config.m_PrismPanelOpacity, 50, 100);
-        Slider("Background darkness", &g_Config.m_PrismGlassDarkness, 0, 100);
-        Slider("Glass tint", &g_Config.m_PrismGlassTint, 0, 100);
-        Toggle("Animations", &g_Config.m_PrismAnimations);
-        Slider("Animation duration (ms)", &g_Config.m_PrismThemeAnimation, 0, 5000);
-        Toggle("Reduce animation", &g_Config.m_PrismReducedMotion);
-        Toggle("Lock ClickGUI position", &g_Config.m_PrismMenuLock);
-        Toggle("Snap ClickGUI to edges", &g_Config.m_PrismMenuSnap);
-        if(Button("Reset ClickGUI position", 23))
-        {
-            g_Config.m_PrismMenuX = 5000;
-            g_Config.m_PrismMenuY = 5000;
-        }
-        if(Button(g_Config.m_PrismMenuCursor ? "Menu cursor: System" : "Menu cursor: DDNet", 28))
-            g_Config.m_PrismMenuCursor ^= 1;
-        if(Button("Reset visual presets only", 15)) Prism::Reset(g_Config);
-        break;
-    }
-    case 0: // Visuals, including presets and all Tee/Hook adjustments
+    	switch(m_PrismCategory)
+	{
+case 0: // Visuals, including presets and all Tee/Hook adjustments
     {
         Label("Visual presets");
         static const char *s_apPresets[] = {"Default", "Clean", "Competitive", "Cinematic", "Custom"};
@@ -461,117 +410,36 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
         Slider("Quality: low / medium / high", &g_Config.m_PrismEffectQuality, 0, 2);
         break;
     }
-    case 3: // QoL and Double Tee
-        Label("Double Tee   /   input composition");
-        Toggle("Assistant active", &g_Config.m_PrismDoubleEnabled);
-        if(Button(g_Config.m_PrismDoubleMode == 0 ? "Mode: movement copying" :
-            g_Config.m_PrismDoubleMode == 1 ? "Mode: Hammer Fly" : "Mode: combined copy + Hammer Fly", 1))
-            g_Config.m_PrismDoubleMode = (g_Config.m_PrismDoubleMode + 1) % 3;
-        Slider("Hammer interval (ticks)", &g_Config.m_PrismDoubleInterval, 5, 100);
-        Bind("Activation key", &g_Config.m_PrismDoubleBind, 0, 2);
-        Bind("Emergency stop key", &g_Config.m_PrismStopBind, 1, 3);
-        Label("F12 always stops Prism automation.");
-        Label("Manual movement takes priority. No physics changes.");
-        if(Button("Stop now and release owned inputs", 4, ColorRGBA(0.65f, 0.28f, 0.29f, 0.35f)))
-            GameClient()->PrismEmergencyStop();
-        break;
-    case 4: // Strictly bounded visual macro editor
-    {
-        Label("Macros   /   visual sequence editor");
-        static int s_SelectedMacro = 0;
-        static int s_SelectedStep = 0;
-        static CButtonContainer s_aMacroSlots[PrismQol::NUM_MACROS];
-        CUIRect Slots = NextRow(40.0f);
-        if(!Scroll.RectClipped(Slots))
-        {
-            for(int i = 0; i < PrismQol::NUM_MACROS; ++i)
-            {
-                CUIRect Slot;
-                Slots.VSplitLeft(Slots.w / (PrismQol::NUM_MACROS - i), &Slot, &Slots);
-                char aName[20]; str_format(aName, sizeof(aName), "Macro %d", i + 1);
-                if(DoButton_Menu(&s_aMacroSlots[i], aName, 0, &Slot, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 8.0f, 0.45f,
-                    s_SelectedMacro == i ? ColorRGBA(0.42f, 0.58f, 0.69f, 0.40f) : ColorRGBA(0.34f, 0.41f, 0.49f, 0.20f)))
-                { s_SelectedMacro = i; s_SelectedStep = 0; }
-            }
-        }
-        char *apDefinition[] = {g_Config.m_PrismMacro1, g_Config.m_PrismMacro2, g_Config.m_PrismMacro3, g_Config.m_PrismMacro4};
-        int *apEnabled[] = {&g_Config.m_PrismMacro1Enabled, &g_Config.m_PrismMacro2Enabled,
-            &g_Config.m_PrismMacro3Enabled, &g_Config.m_PrismMacro4Enabled};
-        int *apBind[] = {&g_Config.m_PrismMacro1Bind, &g_Config.m_PrismMacro2Bind,
-            &g_Config.m_PrismMacro3Bind, &g_Config.m_PrismMacro4Bind};
-        int *apMode[] = {&g_Config.m_PrismMacro1Mode, &g_Config.m_PrismMacro2Mode,
-            &g_Config.m_PrismMacro3Mode, &g_Config.m_PrismMacro4Mode};
-        Toggle("Enabled", apEnabled[s_SelectedMacro]);
-        Bind("Trigger key", apBind[s_SelectedMacro], 2 + s_SelectedMacro, 5);
-        if(Button(*apMode[s_SelectedMacro] == PrismQol::ONCE ? "Mode: Once" :
-            *apMode[s_SelectedMacro] == PrismQol::HOLD ? "Mode: Hold" : "Mode: Toggle", 6))
-            *apMode[s_SelectedMacro] = (*apMode[s_SelectedMacro] + 1) % 3;
-        PrismQol::SSequence Sequence;
-        if(!PrismQol::Parse(apDefinition[s_SelectedMacro], Sequence))
-        {
-            Label("Invalid saved sequence. Use Clear to reset.");
-            if(Button("Clear invalid sequence", 7))
-                apDefinition[s_SelectedMacro][0] = '\0';
-            break;
-        }
-        s_SelectedStep = std::clamp(s_SelectedStep, 0, std::max(0, Sequence.m_Count - 1));
-        static CButtonContainer s_aStepButtons[PrismQol::MAX_STEPS];
-        Label("Steps   /   select to edit");
-        for(int i = 0; i < Sequence.m_Count; ++i)
-        {
-            CUIRect StepRow = NextRow(33.0f);
-            if(Scroll.RectClipped(StepRow)) continue;
-            char aText[128];
-            str_format(aText, sizeof(aText), "%d   %s   /   %d ms", i + 1,
-                PrismQol::ACTION_NAMES[Sequence.m_aSteps[i].m_Action], Sequence.m_aSteps[i].m_DelayMs);
-            if(DoButton_Menu(&s_aStepButtons[i], aText, 0, &StepRow, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 8.0f, 0.43f,
-                s_SelectedStep == i ? ColorRGBA(0.40f, 0.54f, 0.67f, 0.38f) : ColorRGBA(0.35f, 0.43f, 0.52f, 0.18f)))
-                s_SelectedStep = i;
-        }
-        bool Changed = false;
-        if(Sequence.m_Count < PrismQol::MAX_STEPS && Button("+ Add step", 8))
-        {
-            Sequence.m_aSteps[Sequence.m_Count++] = {PrismQol::WAIT, 100};
-            s_SelectedStep = Sequence.m_Count - 1;
-            Changed = true;
-        }
-        if(Sequence.m_Count)
-        {
-            auto &Step = Sequence.m_aSteps[s_SelectedStep];
-            char aAction[128];
-            str_format(aAction, sizeof(aAction), "Action: %s   (click to cycle)", PrismQol::ACTION_NAMES[Step.m_Action]);
-            if(Button(aAction, 9)) { Step.m_Action = (Step.m_Action + 1) % PrismQol::NUM_ACTIONS; Changed = true; }
-            static int s_Delay = 100;
-            static int s_PrevMacro = -1, s_PrevStep = -1;
-            if(s_PrevMacro != s_SelectedMacro || s_PrevStep != s_SelectedStep || Ui()->ActiveItem() != &s_Delay)
-                s_Delay = Step.m_DelayMs;
-            s_PrevMacro = s_SelectedMacro; s_PrevStep = s_SelectedStep;
-            Slider("Delay after action (ms)", &s_Delay, 0, PrismQol::MAX_DELAY_MS);
-            if(s_Delay != Step.m_DelayMs) { Step.m_DelayMs = s_Delay; Changed = true; }
-            if(s_SelectedStep > 0 && Button("Move step up", 10))
-            { std::swap(Sequence.m_aSteps[s_SelectedStep], Sequence.m_aSteps[s_SelectedStep - 1]); --s_SelectedStep; Changed = true; }
-            if(s_SelectedStep + 1 < Sequence.m_Count && Button("Move step down", 11))
-            { std::swap(Sequence.m_aSteps[s_SelectedStep], Sequence.m_aSteps[s_SelectedStep + 1]); ++s_SelectedStep; Changed = true; }
-            if(Button("Delete selected step", 12))
-            {
-                for(int i = s_SelectedStep; i + 1 < Sequence.m_Count; ++i)
-                    Sequence.m_aSteps[i] = Sequence.m_aSteps[i + 1];
-                --Sequence.m_Count;
-                s_SelectedStep = std::clamp(s_SelectedStep, 0, std::max(0, Sequence.m_Count - 1));
-                Changed = true;
-            }
-        }
-        if(Button("Clear macro sequence", 13)) { Sequence = {}; s_SelectedStep = 0; Changed = true; }
-        if(Changed)
-        {
-            char aEncoded[512];
-            if(PrismQol::Encode(Sequence, aEncoded, sizeof(aEncoded)))
-                str_copy(apDefinition[s_SelectedMacro], aEncoded, 512);
-        }
-        Label("Actions only affect game input. No shell or scripts.");
-        break;
-    }
-    case 1: // HUD drag/drop + layout and per-module visibility
+
+	case 1: // Chinese Conical Hat (斗笠)
+	{
+		Label("Chinese Conical Hat   /   斗笠");
+		Toggle("Enable Chinese Hat", &g_Config.m_PrismHatEnabled);
+		if(Button(g_Config.m_PrismHatMode == 0 ? "Mode: Custom Static Color" :
+			g_Config.m_PrismHatMode == 1 ? "Mode: Rainbow Gradient Wave" : "Mode: Shimmering Monochrome Luster", 50))
+			g_Config.m_PrismHatMode = (g_Config.m_PrismHatMode + 1) % 3;
+
+		if(g_Config.m_PrismHatMode != 1)
+			Color("Hat base color", &g_Config.m_PrismHatColor, 51);
+
+		Color("Rib lines color", &g_Config.m_PrismHatRibColor, 52);
+
+		Slider("Facet opacity (%)", &g_Config.m_PrismHatAlpha, 10, 100);
+		Slider("Rib lines opacity (%)", &g_Config.m_PrismHatRibAlpha, 10, 100);
+
+		if(g_Config.m_PrismHatMode != 0)
+			Slider("Animation speed (%)", &g_Config.m_PrismHatSpeed, 10, 500);
+
+		Slider("Hat size scale (%)", &g_Config.m_PrismHatScale, 50, 200);
+		Slider("Vertical offset", &g_Config.m_PrismHatOffsetY, -50, 50);
+
+		Toggle("Tilt with movement & aim", &g_Config.m_PrismHatTilt);
+		Toggle("Show on local player", &g_Config.m_PrismHatLocal);
+		Toggle("Show on other players", &g_Config.m_PrismHatOthers);
+		break;
+	}
+
+case 2: // HUD drag/drop + layout and per-module visibility
     {
         Label("Modular HUD   /   drag handles to reposition");
         Toggle("Enable all modules", &g_Config.m_PrismHudEnabled);
@@ -688,7 +556,8 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
         Label("Staff appears only with server-supplied auth data.");
         break;
     }
-    case 2: // Physical input overlay
+
+case 3: // Physical input overlay
         Label("Input overlay  /  physical controls");
         Toggle("Show input overlay", &g_Config.m_PrismHudInput);
         Slider("Key size", &g_Config.m_PrismInputKeySize, 12, 32);
@@ -699,7 +568,8 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
         Color("Released key", &g_Config.m_PrismInputInactiveColor, 10);
         Label("Movement, Jump, Hook and Fire use physical input.");
         break;
-    case 5: // Themes
+
+case 4: // Themes
         Label("Themes   /   Prism identity");
         if(Button("Theme: Orange graphite", 18)) PrismUi::ApplyTheme(g_Config, 0);
         if(Button("Theme: Glacier", 19)) PrismUi::ApplyTheme(g_Config, 1);
@@ -716,7 +586,40 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
         if(Button("Import theme from prism/theme.json", 22)) PrismTheme::Load(Storage(), g_Config);
         Label("Visual presets do not change macros or HUD layouts.");
         break;
-    }
+
+	case 5: // Settings and status
+	{
+		Label("Prism   /   Control center");
+		Toggle("Enable Prism visuals", &g_Config.m_PrismEnabled);
+		Toggle("Modular HUD", &g_Config.m_PrismHudEnabled);
+		char aStatus[128];
+		str_format(aStatus, sizeof(aStatus), "Client: Prism Legit Edition (DDNet 20.3)   |   Status: Active");
+		Label(aStatus);
+		Label("Insert / Esc: close overlay");
+		Label("Performance   /   measured locally");
+		Toggle("FPS and frame-time overlay", &g_Config.m_PrismOverlay);
+		Toggle("Performance HUD panel", &g_Config.m_PrismHudPerformance);
+		Slider("Menu scale", &g_Config.m_PrismMenuScale, 80, 120);
+		Slider("Glass opacity", &g_Config.m_PrismPanelOpacity, 50, 100);
+		Slider("Background darkness", &g_Config.m_PrismGlassDarkness, 0, 100);
+		Slider("Glass tint", &g_Config.m_PrismGlassTint, 0, 100);
+		Toggle("Animations", &g_Config.m_PrismAnimations);
+		Slider("Animation duration (ms)", &g_Config.m_PrismThemeAnimation, 0, 5000);
+		Toggle("Reduce animation", &g_Config.m_PrismReducedMotion);
+		Toggle("Lock ClickGUI position", &g_Config.m_PrismMenuLock);
+		Toggle("Snap ClickGUI to edges", &g_Config.m_PrismMenuSnap);
+		if(Button("Reset ClickGUI position", 23))
+		{
+			g_Config.m_PrismMenuX = 5000;
+			g_Config.m_PrismMenuY = 5000;
+		}
+		if(Button(g_Config.m_PrismMenuCursor ? "Menu cursor: System" : "Menu cursor: DDNet", 28))
+			g_Config.m_PrismMenuCursor ^= 1;
+		if(Button("Reset visual presets only", 15)) Prism::Reset(g_Config);
+		break;
+	}
+	}
+
 	Scroll.End();
 	Footer.Draw(Theme.m_Text.WithAlpha(0.04f), IGraphics::CORNER_ALL, 5.0f);
 	Ui()->DoLabel(&Footer, "PRISM " PRISM_VERSION "  /  Insert or Esc", 9.0f, TEXTALIGN_MC);

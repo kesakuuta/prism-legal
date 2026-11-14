@@ -11,15 +11,6 @@
 #define MACRO_CONFIG_STR(Name, ScriptName, Len, Def, Save, Desc)
 #endif
 
-// Prism settings use the normal DDNet config persistence and range validation.
-#include "prism_variables.h"
-#include "prism_qol_variables.h"
-#include "prism_assist_variables.h"
-#include "prism_effect_variables.h"
-#include "prism_theme_variables.h"
-MACRO_CONFIG_INT(PrismPreset, prism_preset, 0, 0, 4, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Prism preset identity: 0 Default, 1 Clean, 2 Competitive, 3 Cinematic, 4 Custom; use prism_apply_preset to apply")
-MACRO_CONFIG_INT(PrismOverlay, prism_overlay, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show FPS and average frame time")
-
 // client
 MACRO_CONFIG_INT(ClPredict, cl_predict, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Predict client movements")
 MACRO_CONFIG_INT(ClPredictDummy, cl_predict_dummy, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Predict dummy movements")
@@ -35,12 +26,17 @@ MACRO_CONFIG_INT(ClAntiPingGunfire, cl_antiping_gunfire, 1, 0, 1, CFGFLAG_CLIENT
 MACRO_CONFIG_INT(ClAntiPingPreInput, cl_antiping_preinput, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Predict other players using preinputs for more accurate input prediction")
 MACRO_CONFIG_INT(ClPredictionMargin, cl_prediction_margin, 10, 1, 300, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Prediction margin in ms (adds latency, can reduce lag from ping jumps)")
 MACRO_CONFIG_INT(ClSubTickAiming, cl_sub_tick_aiming, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Send aiming data at sub-tick accuracy")
-#if defined(CONF_PLATFORM_ANDROID)
+#if defined(CONF_PLATFORM_ANDROID) || defined(CONF_PLATFORM_IOS)
 MACRO_CONFIG_INT(ClTouchControls, cl_touch_controls, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Enable ingame touch controls")
 #else
 MACRO_CONFIG_INT(ClTouchControls, cl_touch_controls, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Enable ingame touch controls")
 #endif
+#if defined(CONF_PLATFORM_IOS)
+// iOS has neither a back button nor a keyboard to press the escape-key with.
+MACRO_CONFIG_INT(ClBackButton, cl_back_button, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show draggable virtual back button")
+#else
 MACRO_CONFIG_INT(ClBackButton, cl_back_button, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show draggable virtual back button")
+#endif
 MACRO_CONFIG_INT(ClBackButtonX, cl_back_button_x, 5000, 0, 1000000, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Relative X position of the draggable back button")
 MACRO_CONFIG_INT(ClBackButtonY, cl_back_button_y, 5000, 0, 1000000, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Relative Y position of the draggable back button")
 
@@ -144,7 +140,7 @@ MACRO_CONFIG_INT(EdAlignQuads, ed_align_quads, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG
 MACRO_CONFIG_INT(EdShowQuadsRect, ed_show_quads_rect, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show the bounds of the selected quad. In case of multiple quads, it shows the bounds of the englobing rect. Can be helpful when aligning a group of quads")
 MACRO_CONFIG_INT(EdAutoMapReload, ed_auto_map_reload, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Run 'hot_reload' on the local server while rcon authed on map save")
 MACRO_CONFIG_INT(EdLayerSelector, ed_layer_selector, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Ctrl+right click tiles to select their layers in the editor")
-MACRO_CONFIG_INT(EdShowIngameEntities, ed_show_ingame_entities, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show how weapons, shields, hearts and flags appear ingame")
+MACRO_CONFIG_INT(EdShowIngameEntities, ed_show_ingame_entities, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show how weapons, shields, snowflakes and flags appear ingame")
 
 MACRO_CONFIG_INT(ClShowWelcome, cl_show_welcome, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show welcome message indicating the first launch of the client")
 MACRO_CONFIG_INT(ClMotdTime, cl_motd_time, 10, 0, 100, CFGFLAG_CLIENT | CFGFLAG_SAVE, "How long to show the server message of the day")
@@ -231,7 +227,7 @@ MACRO_CONFIG_STR(ClDummy7SkinEyes, dummy7_skin_eyes, protocol7::MAX_SKIN_ARRAY_S
 // MACRO_CONFIG_STR(ClCensorUrl, cl_censor_url, 100, "https://info.ddnet.org/censor.json", CFGFLAG_CLIENT | CFGFLAG_SAVE, "URL used to download words to censor (must start with https://)")
 
 MACRO_CONFIG_INT(UiPage, ui_page, 6, 6, 13, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Interface page")
-MACRO_CONFIG_INT(UiSettingsPage, ui_settings_page, 0, 0, 11, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Interface settings page")
+MACRO_CONFIG_INT(UiSettingsPage, ui_settings_page, 0, 0, 10, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Interface settings page")
 MACRO_CONFIG_INT(UiToolboxPage, ui_toolbox_page, 0, 0, 2, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Toolbox page")
 MACRO_CONFIG_STR(UiServerAddress, ui_server_address, 1024, "localhost:8303", CFGFLAG_CLIENT | CFGFLAG_SAVE | CFGFLAG_INSENSITIVE, "Interface server address")
 MACRO_CONFIG_INT(UiMousesens, ui_mousesens, 200, 1, 100000, CFGFLAG_SAVE | CFGFLAG_CLIENT, "Mouse sensitivity for menus/editor")
@@ -466,12 +462,14 @@ MACRO_CONFIG_STR(SvName, sv_name, 128, "unnamed server", CFGFLAG_SERVER, "Server
 MACRO_CONFIG_STR(Bindaddr, bindaddr, 128, "", CFGFLAG_CLIENT | CFGFLAG_SERVER, "Address to bind the client/server to")
 MACRO_CONFIG_INT(SvIpv4Only, sv_ipv4only, 0, 0, 1, CFGFLAG_SERVER, "Whether to bind only to ipv4, otherwise bind to all available interfaces")
 MACRO_CONFIG_INT(SvPort, sv_port, 0, 0, 65535, CFGFLAG_SERVER, "Port to use for the server (Only ports 8303-8310 work in LAN server browser, 0 to automatically find a free port in 8303-8310). See sv_register_port for the external port if you're behind NAT")
+MACRO_CONFIG_STR(SvPortFile, sv_port_file, IO_MAX_PATH_LENGTH, "", CFGFLAG_SERVER, "File to write the server's port to (used when running server from client)")
 MACRO_CONFIG_STR(SvHostname, sv_hostname, 128, "", CFGFLAG_SERVER, "Server hostname (0.7 only)")
 MACRO_CONFIG_STR(SvMap, sv_map, 128, "Sunny Side Up", CFGFLAG_SERVER, "Map to use on the server")
 MACRO_CONFIG_INT(SvMaxClients, sv_max_clients, SERVER_MAX_CLIENTS, 1, SERVER_MAX_CLIENTS, CFGFLAG_SERVER, "Maximum number of clients that are allowed on a server")
 MACRO_CONFIG_INT(SvMaxClientsPerIp, sv_max_clients_per_ip, 4, 1, SERVER_MAX_CLIENTS, CFGFLAG_SERVER, "Maximum number of clients with the same IP that can connect to the server")
 MACRO_CONFIG_INT(SvHighBandwidth, sv_high_bandwidth, 0, 0, 1, CFGFLAG_SERVER, "Use high bandwidth mode. Doubles the bandwidth required for the server. LAN use only")
 MACRO_CONFIG_INT(SvPreInput, sv_preinput, 1, 0, 1, CFGFLAG_SERVER, "Sends client inputs to other clients before their correct tick. Increases the bandwidth required for the server")
+MACRO_CONFIG_INT(SvMaxPreInputsPerTick, sv_max_preinputs_per_tick, 8, 0, 1000, CFGFLAG_SERVER, "Maximum number of inputs per tick and client that are sent on to the other clients as preinput (0 for no limit)")
 MACRO_CONFIG_STR(SvRegister, sv_register, 16, "1", CFGFLAG_SERVER, "Register server with master server for public listing, can also accept a comma-separated list of protocols to register on, like 'ipv4,ipv6'")
 MACRO_CONFIG_STR(SvRegisterExtra, sv_register_extra, 256, "", CFGFLAG_SERVER, "Extra headers to send to the register endpoint, comma-separated 'Header: Value' pairs")
 MACRO_CONFIG_STR(SvRegisterUrl, sv_register_url, 128, "https://master1.ddnet.org/ddnet/15/register", CFGFLAG_SERVER, "Masterserver URL to register to")
@@ -502,7 +500,12 @@ MACRO_CONFIG_INT(SvRconVote, sv_rcon_vote, 0, 0, 1, CFGFLAG_SERVER, "Only allow 
 MACRO_CONFIG_INT(SvPlayerDemoRecord, sv_player_demo_record, 0, 0, 1, CFGFLAG_SERVER, "Automatically record a demo when a player sets a new personal best time.")
 MACRO_CONFIG_INT(SvDemoChat, sv_demo_chat, 0, 0, 1, CFGFLAG_SERVER, "Record chat for demos")
 MACRO_CONFIG_INT(SvServerInfoPerSecond, sv_server_info_per_second, 50, 0, 10000, CFGFLAG_SERVER, "Maximum number of complete server info responses that are sent out per second (0 for no limit)")
+MACRO_CONFIG_INT(SvServerInfoRepliesPerSecond, sv_server_info_replies_per_second, 500, 0, 1000000, CFGFLAG_SERVER, "Maximum number of server info responses of any size that are sent out per second, the requesting address is not verified in 0.6 (0 for no limit)")
 MACRO_CONFIG_INT(SvVanConnPerSecond, sv_van_conn_per_second, 10, 0, 10000, CFGFLAG_SERVER, "Antispoof specific ratelimit (0 for no limit)")
+MACRO_CONFIG_INT(SvVanConnRepliesPerSecond, sv_van_conn_replies_per_second, 200, 0, 1000000, CFGFLAG_SERVER, "Maximum number of vanilla antispoof handshakes that are answered per second, they are answered to addresses that are not verified yet (0 for no limit)")
+MACRO_CONFIG_INT(SvMaxPacketsPerRecv, sv_max_packets_per_recv, 2048, 0, 1000000, CFGFLAG_SERVER, "Maximum number of packets that are received in one batch before returning to the main loop, the rest is left for the operating system to drop (0 for no limit)")
+MACRO_CONFIG_INT(SvPreConnDecompressPerSecond, sv_preconn_decompress_per_second, 800, 0, 1000000, CFGFLAG_SERVER, "Maximum number of compressed packets from addresses without a connection that are decompressed per second, only the vanilla antispoof handshake needs these (0 for no limit)")
+MACRO_CONFIG_INT(SvBanRepliesPerSecond, sv_ban_replies_per_second, 200, 0, 1000000, CFGFLAG_SERVER, "Maximum number of banned addresses that are told about their ban per second (0 for no limit)")
 MACRO_CONFIG_INT(SvSixup, sv_sixup, 1, 0, 1, CFGFLAG_SERVER, "Enable sixup connections")
 MACRO_CONFIG_INT(SvSkillLevel, sv_skill_level, 1, SERVERINFO_LEVEL_MIN, SERVERINFO_LEVEL_MAX, CFGFLAG_SERVER, "Difficulty level for Teeworlds 0.7 (0: Casual, 1: Normal, 2: Competitive)")
 
@@ -534,7 +537,7 @@ MACRO_CONFIG_INT(HttpAllowInsecure, http_allow_insecure, 0, 0, 1, CFGFLAG_CLIENT
 MACRO_CONFIG_STR(SvWelcome, sv_welcome, 256, "", CFGFLAG_SERVER, "Message that will be displayed to players who join the server")
 MACRO_CONFIG_INT(SvReservedSlots, sv_reserved_slots, 0, 0, SERVER_MAX_CLIENTS, CFGFLAG_SERVER, "The number of slots that are reserved for special players")
 MACRO_CONFIG_STR(SvReservedSlotsPass, sv_reserved_slots_pass, 256, "", CFGFLAG_SERVER | CFGFLAG_NONTEEHISTORIC, "The password that is required to use a reserved slot")
-MACRO_CONFIG_INT(SvReservedSlotsAuthLevel, sv_reserved_slots_auth_level, 1, 1, 4, CFGFLAG_SERVER, "Minimum rcon auth level needed to use a reserved slot. 4 = rcon auth disabled")
+MACRO_CONFIG_STR(SvReservedSlotsAuthLevel, sv_reserved_slots_auth_level, 256, "helper", CFGFLAG_SERVER, "Minimum rcon auth level needed to use a reserved slot. \"\" = rcon auth disabled")
 MACRO_CONFIG_INT(SvHit, sv_hit, 1, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Whether players can hammer/grenade/laser each other or not")
 MACRO_CONFIG_INT(SvEndlessDrag, sv_endless_drag, 0, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Turns endless hooking on/off")
 MACRO_CONFIG_INT(SvTestingCommands, sv_test_cmds, 0, 0, 1, CFGFLAG_SERVER, "Turns testing commands aka cheats on/off (setting only works in initial config)")
@@ -548,7 +551,7 @@ MACRO_CONFIG_INT(SvPauseMessages, sv_pause_messages, 0, 0, 1, CFGFLAG_SERVER, "W
 MACRO_CONFIG_INT(SvSpecFrequency, sv_pause_frequency, 1, 0, 9999, CFGFLAG_SERVER, "The minimum allowed delay between /spec")
 MACRO_CONFIG_INT(SvInvite, sv_invite, 1, 0, 1, CFGFLAG_SERVER, "Whether players can invite other players to teams")
 MACRO_CONFIG_INT(SvInviteFrequency, sv_invite_frequency, 1, 0, 9999, CFGFLAG_SERVER, "The minimum allowed delay between invites")
-MACRO_CONFIG_INT(SvTeleOthersAuthLevel, sv_tele_others_auth_level, 1, 1, 3, CFGFLAG_SERVER, "The auth level you need to tele others")
+MACRO_CONFIG_STR(SvTeleOthersAuthLevel, sv_tele_others_auth_level, 256, "helper", CFGFLAG_SERVER, "The auth level you need to tele others")
 MACRO_CONFIG_INT(SvRegionalRankings, sv_regional_rankings, 1, 0, 1, CFGFLAG_SERVER, "Display regional rankings in /rank, /top5 and /top5team")
 
 MACRO_CONFIG_INT(SvEmotionalTees, sv_emotional_tees, 1, -1, 1, CFGFLAG_SERVER, "Whether eye change of tees is enabled with emoticons = 1, not = 0, -1 not at all")
@@ -564,7 +567,7 @@ MACRO_CONFIG_INT(SvVoteMapTimeDelay, sv_vote_map_delay, 0, 0, 9999, CFGFLAG_SERV
 MACRO_CONFIG_INT(SvVoteDelay, sv_vote_delay, 3, 0, 9999, CFGFLAG_SERVER, "The time in seconds between any vote")
 MACRO_CONFIG_INT(SvVoteKickDelay, sv_vote_kick_delay, 0, 0, 9999, CFGFLAG_SERVER, "The minimum time in seconds between kick votes")
 MACRO_CONFIG_INT(SvVoteYesPercentage, sv_vote_yes_percentage, 50, 1, 99, CFGFLAG_SERVER, "More than this percentage of players need to agree for a vote to succeed")
-MACRO_CONFIG_INT(SvVoteMajority, sv_vote_majority, 0, 0, 1, CFGFLAG_SERVER, "Whether non-voting players are considered as votes for \"no\" (0) or are ignored (1)")
+MACRO_CONFIG_INT(SvVoteMajority, sv_vote_majority, 0, 0, 1, CFGFLAG_SERVER, "Whether non-voting players are ignored (0) or are considered as votes for \"no\" (1)")
 MACRO_CONFIG_INT(SvVoteMaxTotal, sv_vote_max_total, 0, 0, SERVER_MAX_CLIENTS, CFGFLAG_SERVER, "How many players can participate in a vote at max (0 = no limit)")
 MACRO_CONFIG_INT(SvVoteVetoTime, sv_vote_veto_time, 20, 0, 1000, CFGFLAG_SERVER, "Minutes of time on a server until a player can veto map change votes (0 = disabled)")
 MACRO_CONFIG_INT(SvKillDelay, sv_kill_delay, 1, 0, 9999, CFGFLAG_SERVER, "The minimum time in seconds between kills")
@@ -646,6 +649,7 @@ MACRO_CONFIG_COL(ClMessageFriendColor, cl_message_friend_color, 65425, CFGFLAG_C
 
 MACRO_CONFIG_INT(ConnTimeout, conn_timeout, 100, 5, 1000, CFGFLAG_SAVE | CFGFLAG_CLIENT | CFGFLAG_SERVER, "Network timeout")
 MACRO_CONFIG_INT(ConnTimeoutProtection, conn_timeout_protection, 1000, 5, 10000, CFGFLAG_SERVER, "Network timeout protection")
+MACRO_CONFIG_INT(ConnResendRequestsPerSecond, conn_resend_requests_per_second, 10, 0, 1000, CFGFLAG_CLIENT | CFGFLAG_SERVER, "Maximum number of resend requests of a peer that are answered per second, one answer resends everything that is not acked yet (0 for no limit)")
 MACRO_CONFIG_INT(ClShowIds, cl_show_ids, 0, 0, 1, CFGFLAG_SAVE | CFGFLAG_CLIENT, "Whether to show client IDs in scoreboard, chat and spectator menu")
 MACRO_CONFIG_INT(ClScoreboardOnDeath, cl_scoreboard_on_death, 1, 0, 1, CFGFLAG_SAVE | CFGFLAG_CLIENT, "Whether to show scoreboard after death or not")
 MACRO_CONFIG_INT(ClAutoRaceRecord, cl_auto_race_record, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Save the best demo of each race")
@@ -714,7 +718,7 @@ MACRO_CONFIG_STR(SvBannedVersions, sv_banned_versions, 128, "", CFGFLAG_SERVER, 
 MACRO_CONFIG_INT(SvNetlimit, sv_netlimit, 0, 0, 10000, CFGFLAG_SERVER, "Netlimit: Maximum amount of traffic a client is allowed to use (in kb/s)")
 MACRO_CONFIG_INT(SvNetlimitAlpha, sv_netlimit_alpha, 50, 1, 100, CFGFLAG_SERVER, "Netlimit: Alpha of Exponentiation moving average")
 
-MACRO_CONFIG_INT(SvConnlimit, sv_connlimit, 5, 0, 100, CFGFLAG_SERVER, "Connlimit: Number of connections an IP is allowed to do in a timespan")
+MACRO_CONFIG_INT(SvConnlimit, sv_connlimit, 5, 1, 100, CFGFLAG_SERVER, "Connlimit: Number of connections an IP is allowed to do in a timespan")
 MACRO_CONFIG_INT(SvConnlimitTime, sv_connlimit_time, 20, 0, 1000, CFGFLAG_SERVER, "Connlimit: Time in which IP's connections are counted")
 
 #if defined(CONF_FAMILY_UNIX)
@@ -784,7 +788,7 @@ MACRO_CONFIG_STR(Gfx3DTextureAnalysisVersion, gfx_3d_texture_analysis_version, 1
 MACRO_CONFIG_STR(GfxGpuName, gfx_gpu_name, 256, "auto", CFGFLAG_SAVE | CFGFLAG_CLIENT, "The GPU's name, which will be selected by the backend. (if supported by the backend)")
 #if defined(CONF_PLATFORM_ANDROID)
 MACRO_CONFIG_STR(GfxBackend, gfx_backend, 256, "GLES", CFGFLAG_SAVE | CFGFLAG_CLIENT, "The backend to use (e.g. GLES or Vulkan)")
-#elif defined(CONF_PLATFORM_EMSCRIPTEN)
+#elif defined(CONF_PLATFORM_EMSCRIPTEN) || defined(CONF_PLATFORM_IOS)
 MACRO_CONFIG_STR(GfxBackend, gfx_backend, 256, "GLES", CFGFLAG_SAVE | CFGFLAG_CLIENT, "The backend to use (e.g. GLES)")
 #elif !defined(CONF_ARCH_IA32) && !defined(CONF_PLATFORM_MACOS)
 MACRO_CONFIG_STR(GfxBackend, gfx_backend, 256, "Vulkan", CFGFLAG_SAVE | CFGFLAG_CLIENT, "The backend to use (e.g. OpenGL or Vulkan)")
@@ -800,3 +804,16 @@ MACRO_CONFIG_INT(ClVideoRecorderFPS, cl_video_recorder_fps, 60, 1, 1000, CFGFLAG
 /*
  * Add config variables for mods below this comment to avoid merge conflicts.
  */
+
+// Prism settings (cheat-free legit edition)
+#include "prism_variables.h"
+#include "prism_qol_variables.h"
+#include "prism_effect_variables.h"
+#include "prism_theme_variables.h"
+#include "prism_hat_variables.h"
+MACRO_CONFIG_INT(PrismPreset, prism_preset, 0, 0, 4, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Prism preset identity: 0 Default, 1 Clean, 2 Competitive, 3 Cinematic, 4 Custom")
+MACRO_CONFIG_INT(PrismOverlay, prism_overlay, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show FPS and average frame time")
+
+// T-Client settings
+#include "config_variables_tclient.h"
+

@@ -18,6 +18,8 @@ CLaser::CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEner
 	CEntity(pGameWorld, CGameWorld::ENTTYPE_LASER, true)
 {
 	m_Pos = Pos;
+	m_Number = 0;
+	m_Layer = LAYER_GAME;
 	m_Owner = Owner;
 	m_Energy = StartEnergy;
 	m_Dir = Direction;
@@ -309,7 +311,7 @@ void CLaser::SyncInteractState()
 	// as soon as the owner disconnects keep that state
 	if(pOwnerPlayer)
 	{
-		bool NoHitOthers = g_Config.m_SvHit;
+		bool NoHitOthers = g_Config.m_SvHit == 0;
 		if(pOwnerChar)
 			NoHitOthers = (m_Type == WEAPON_LASER && pOwnerChar->LaserHitDisabled()) || (m_Type == WEAPON_SHOTGUN && pOwnerChar->ShotgunHitDisabled());
 		bool NoHitSelf = g_Config.m_SvOldLaser || (m_Bounces == 0 && !m_WasTele);

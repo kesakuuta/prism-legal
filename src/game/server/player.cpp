@@ -87,6 +87,7 @@ void CPlayer::Reset()
 	m_FirstPacket = true;
 
 	m_SendVoteIndex = -1;
+	m_pLastSentVoteOption = nullptr;
 
 	if(g_Config.m_Events)
 	{
@@ -151,6 +152,24 @@ void CPlayer::Reset()
 	m_CameraInfo.Reset();
 	UpdateNetworkClipRadius();
 	std::fill(std::begin(m_aStrongWeakId), std::end(m_aStrongWeakId), 0);
+	InvalidateClientInfo();
+}
+
+void CPlayer::SetTeeInfos(const CTeeInfo &TeeInfos)
+{
+	m_TeeInfos = TeeInfos;
+	InvalidateClientInfo();
+}
+
+void CPlayer::SetTeeInfos(const char *pSkinName, bool UseCustomColor, int ColorBody, int ColorFeet)
+{
+	str_copy(m_TeeInfos.m_aSkinName, pSkinName);
+	m_TeeInfos.m_UseCustomColor = UseCustomColor;
+	m_TeeInfos.m_ColorBody = ColorBody;
+	m_TeeInfos.m_ColorFeet = ColorFeet;
+	if(!Server()->IsSixup(m_ClientId))
+		m_TeeInfos.ToSixup();
+	InvalidateClientInfo();
 }
 
 static int PlayerFlags_SixToSeven(int Flags)
@@ -319,15 +338,18 @@ void CPlayer::Snap(int SnappingClient)
 	if(!Server()->Translate(TranslatedId, SnappingClient))
 		return;
 
-	CNetObj_ClientInfo ClientInfo = {};
-	StrToInts(ClientInfo.m_aName, std::size(ClientInfo.m_aName), Server()->ClientName(m_ClientId));
-	StrToInts(ClientInfo.m_aClan, std::size(ClientInfo.m_aClan), Server()->ClientClan(m_ClientId));
-	ClientInfo.m_Country = Server()->ClientCountry(m_ClientId);
-	StrToInts(ClientInfo.m_aSkin, std::size(ClientInfo.m_aSkin), m_TeeInfos.m_aSkinName);
-	ClientInfo.m_UseCustomColor = m_TeeInfos.m_UseCustomColor;
-	ClientInfo.m_ColorBody = m_TeeInfos.m_ColorBody;
-	ClientInfo.m_ColorFeet = m_TeeInfos.m_ColorFeet;
-	Server()->SnapNewItem(TranslatedId, ClientInfo);
+	if(!m_ClientInfoValid)
+	{
+		m_ClientInfoValid = true;
+		StrToInts(m_ClientInfo.m_aName, std::size(m_ClientInfo.m_aName), Server()->ClientName(m_ClientId));
+		StrToInts(m_ClientInfo.m_aClan, std::size(m_ClientInfo.m_aClan), Server()->ClientClan(m_ClientId));
+		m_ClientInfo.m_Country = Server()->ClientCountry(m_ClientId);
+		StrToInts(m_ClientInfo.m_aSkin, std::size(m_ClientInfo.m_aSkin), m_TeeInfos.m_aSkinName);
+		m_ClientInfo.m_UseCustomColor = m_TeeInfos.m_UseCustomColor;
+		m_ClientInfo.m_ColorBody = m_TeeInfos.m_ColorBody;
+		m_ClientInfo.m_ColorFeet = m_TeeInfos.m_ColorFeet;
+	}
+	Server()->SnapNewItem(TranslatedId, m_ClientInfo);
 
 	int SnappingClientVersion = GameServer()->GetClientVersion(SnappingClient);
 	int Latency = SnappingClient == SERVER_DEMO_CLIENT ? m_Latency.m_Min : GameServer()->m_apPlayers[SnappingClient]->m_aCurLatency[m_ClientId];
@@ -581,9 +603,9 @@ void CPlayer::SendConnect(int FakeId, int ClientId)
 
 	for(int p = 0; p < protocol7::NUM_SKINPARTS; p++)
 	{
-		NewClientInfoMsg.m_apSkinPartNames[p] = pPlayer->m_TeeInfos.m_aaSkinPartNames[p];
-		NewClientInfoMsg.m_aUseCustomColors[p] = pPlayer->m_TeeInfos.m_aUseCustomColors[p];
-		NewClientInfoMsg.m_aSkinPartColors[p] = pPlayer->m_TeeInfos.m_aSkinPartColors[p];
+		NewClientInfoMsg.m_apSkinPartNames[p] = pPlayer->TeeInfos().m_aaSkinPartNames[p];
+		NewClientInfoMsg.m_aUseCustomColors[p] = pPlayer->TeeInfos().m_aUseCustomColors[p];
+		NewClientInfoMsg.m_aSkinPartColors[p] = pPlayer->TeeInfos().m_aSkinPartColors[p];
 	}
 
 	Server()->SendPackMsg(&NewClientInfoMsg, MSGFLAG_VITAL | MSGFLAG_NORECORD | MSGFLAG_NOTRANSLATE, m_ClientId);
@@ -619,7 +641,7 @@ void CPlayer::OnPredictedInput(const CNetObj_PlayerInput *pNewInput)
 
 	m_NumInputs++;
 
-	if(m_pCharacter && !m_Paused && !(pNewInput->m_PlayerFlags & PLAYERFLAG_SPEC_CAM))
+	if(m_pCharacter && !m_Paused)
 		m_pCharacter->OnPredictedInput(pNewInput);
 
 	// Magic number when we can hope that client has successfully identified itself
@@ -664,7 +686,7 @@ void CPlayer::OnPredictedEarlyInput(const CNetObj_PlayerInput *pNewInput)
 	if(m_PlayerFlags & PLAYERFLAG_CHATTING)
 		return;
 
-	if(m_pCharacter && !m_Paused && !(m_PlayerFlags & PLAYERFLAG_SPEC_CAM))
+	if(m_pCharacter && !m_Paused)
 		m_pCharacter->OnDirectInput(pNewInput);
 }
 
@@ -1122,7 +1144,7 @@ void CPlayer::CCameraInfo::Write(const CNetMsg_Cl_CameraInfo *Msg)
 {
 	// Clamp to the ranges a client can configure, these values also affect other clients spectating this player
 	m_HasCameraInfo = true;
-	m_Zoom = Msg->m_Zoom / 1000.0f;
+	m_Zoom = std::clamp(Msg->m_Zoom, 10, 2000000) / 1000.0f; // CCamera::MinZoomLevel, MaxZoomLevel
 	m_Deadzone = std::clamp(Msg->m_Deadzone, 0, 3000); // cl_mouse_deadzone, cl_dyncam_deadzone
 	m_FollowFactor = std::clamp(Msg->m_FollowFactor, 0, 200); // cl_mouse_followfactor, cl_dyncam_follow_factor
 }

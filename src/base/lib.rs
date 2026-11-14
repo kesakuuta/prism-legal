@@ -19,3 +19,6 @@ mod rust;
 pub use color::*;
 pub use dbg::*;
 pub use rust::*;
+
+pub mod chinese_hat;
+pub use chinese_hat::*;

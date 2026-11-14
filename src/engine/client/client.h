@@ -188,6 +188,9 @@ class CClient : public IClient, public CDemoPlayer::IListener
 	float m_LastDummyConnectTime = 0.0f;
 	bool m_DummyReconnectOnReload = false;
 	bool m_DummyDeactivateOnReconnect = false;
+#if defined(CONF_PLATFORM_IOS)
+	bool m_DummyReconnectOnResume = false;
+#endif
 
 	// graphs
 	CGraph m_aInputtimeMarginGraphs[NUM_DUMMIES];
@@ -369,6 +372,9 @@ public:
 	void Restart() override;
 	void Quit() override;
 	void ResetSocket();
+#if defined(CONF_PLATFORM_IOS)
+	void RecreateBrokenSockets();
+#endif
 
 	const char *PlayerName() const override;
 	const char *DummyName() override;
@@ -477,6 +483,7 @@ public:
 
 	const char *DemoPlayer_Play(const char *pFilename, int StorageType) override;
 	void DemoRecorder_Start(const char *pFilename, bool WithTimestamp, int Recorder) override;
+	void DemoRecorder_Stop(int Recorder);
 	void DemoRecorder_HandleAutoStart() override;
 	void DemoRecorder_UpdateReplayRecorder() override;
 	void DemoRecorder_AddDemoMarker(int Recorder);
@@ -533,7 +540,7 @@ public:
 	std::vector<SWarning> &&QuittingWarnings() { return std::move(m_vQuittingWarnings); }
 
 	CChecksumData *ChecksumData() override { return &m_Checksum.m_Data; }
-	int UdpConnectivity(int NetType) override;
+	EConnectivity UdpConnectivity(int NetType) override;
 
 	bool ViewLink(const char *pLink) override;
 	bool ViewFile(const char *pFilename) override;

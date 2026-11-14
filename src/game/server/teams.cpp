@@ -527,6 +527,7 @@ void CGameTeams::ChangeTeamState(int Team, ETeamState State)
 
 void CGameTeams::KillTeam(int Team, int NewStrongId, int ExceptId)
 {
+	CClientMask KilledMask;
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if(m_Core.Team(i) == Team && GameServer()->m_apPlayers[i])
@@ -534,6 +535,8 @@ void CGameTeams::KillTeam(int Team, int NewStrongId, int ExceptId)
 			GameServer()->m_apPlayers[i]->m_VotedForPractice = false;
 			if(i != ExceptId)
 			{
+				if(GameServer()->m_apPlayers[i]->GetCharacter())
+					KilledMask.set(i);
 				GameServer()->m_apPlayers[i]->KillCharacter(WEAPON_SELF, false);
 				if(NewStrongId != -1 && i != NewStrongId)
 				{
@@ -558,6 +561,22 @@ void CGameTeams::KillTeam(int Team, int NewStrongId, int ExceptId)
 		if(!Server()->ClientIngame(i))
 			continue;
 		Msg.m_Team = TeamForClient(Team, i);
+		if(Msg.m_Team == TEAM_FLOCK && Team != TEAM_FLOCK)
+		{
+			// The client resets prediction for every tee it thinks is in the killed team.
+			for(int Killed = 0; Killed < MAX_CLIENTS; Killed++)
+			{
+				if(!KilledMask.test(Killed))
+					continue;
+				CNetMsg_Sv_KillMsg KillMsg;
+				KillMsg.m_Killer = Killed;
+				KillMsg.m_Victim = Killed;
+				KillMsg.m_Weapon = WEAPON_SELF;
+				KillMsg.m_ModeSpecial = 0;
+				Server()->SendPackMsg(&KillMsg, MSGFLAG_VITAL | MSGFLAG_NORECORD, i);
+			}
+			continue;
+		}
 		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, i);
 	}
 }
@@ -1190,9 +1209,10 @@ void CGameTeams::ProcessSaveTeam()
 			}
 			for(int i = 0; i < Size; i++)
 			{
-				if(m_apSaveTeamResult[Team]->m_SavedTeam.m_pSavedTees->IsHooking())
+				const CSaveTee &SavedTee = m_apSaveTeamResult[Team]->m_SavedTeam.m_pSavedTees[i];
+				if(SavedTee.IsHooking())
 				{
-					int ClientId = m_apSaveTeamResult[Team]->m_SavedTeam.m_pSavedTees->GetClientId();
+					const int ClientId = SavedTee.GetClientId();
 					if(GameServer()->m_apPlayers[ClientId] != nullptr)
 						GameServer()->SendChatTarget(ClientId, "Start holding the hook before loading the savegame to keep the hook");
 				}
@@ -1263,7 +1283,8 @@ void CGameTeams::OnCharacterSpawn(int ClientId)
 	if(GetSaving(Team))
 		return;
 
-	if(!IsValidTeamNumber(Team) || !m_aTeamLocked[Team])
+	if(!IsValidTeamNumber(Team) || Team == TEAM_FLOCK || g_Config.m_SvTeam == SV_TEAM_FORCED_SOLO ||
+		(!m_aTeamLocked[Team] && !m_aTeamFlock[Team] && m_aTeamState[Team] > ETeamState::OPEN))
 	{
 		if(g_Config.m_SvTeam != SV_TEAM_FORCED_SOLO)
 			SetForceCharacterTeam(ClientId, TEAM_FLOCK);
@@ -1272,6 +1293,10 @@ void CGameTeams::OnCharacterSpawn(int ClientId)
 		if(!m_aTeamFlock[Team])
 			CheckTeamFinished(Team);
 	}
+
+	CPlayer *pPlayer = GetPlayer(ClientId);
+	if(!g_Config.m_SvPauseable && pPlayer->IsPaused() == -1 * CPlayer::PAUSE_SPEC && !IsPractice(m_Core.Team(ClientId)))
+		pPlayer->Pause(CPlayer::PAUSE_PAUSED, true);
 }
 
 void CGameTeams::OnCharacterDeath(int ClientId, int Weapon)
@@ -1316,7 +1341,7 @@ void CGameTeams::OnCharacterDeath(int ClientId, int Weapon)
 				{
 					for(int ClientId1 = 0; ClientId1 < MAX_CLIENTS; ClientId1++)
 					{
-						if(m_Core.Team(ClientId1) == Team)
+						if(ClientId1 != ClientId && m_Core.Team(ClientId1) == Team)
 						{
 							CPlayer *pPlayer = GameServer()->m_apPlayers[ClientId1];
 							if(pPlayer && pPlayer->IsPaused() == -1 * CPlayer::PAUSE_SPEC)
@@ -1335,6 +1360,11 @@ void CGameTeams::OnCharacterDeath(int ClientId, int Weapon)
 					GameServer()->SendChatTeam(Team, "This team was disbanded because there are more players than allowed in the team.");
 					SetTeamLock(Team, false);
 					KillTeam(Team, Weapon == WEAPON_SELF ? ClientId : -1, ClientId);
+					for(int MemberId = 0; MemberId < MAX_CLIENTS; MemberId++)
+					{
+						if(m_Core.Team(MemberId) == Team && GameServer()->m_apPlayers[MemberId])
+							SetForceCharacterTeam(MemberId, TEAM_FLOCK);
+					}
 					return;
 				}
 

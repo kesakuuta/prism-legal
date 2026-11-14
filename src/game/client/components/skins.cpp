@@ -57,10 +57,7 @@ CSkins::CSkinContainer::CSkinContainer(CSkins *pSkins, const char *pName, EType 
 
 CSkins::CSkinContainer::~CSkinContainer()
 {
-	if(m_pLoadJob)
-	{
-		m_pLoadJob->Abort();
-	}
+	dbg_assert(m_pLoadJob == nullptr, "Skin container load job was not cleared");
 }
 
 bool CSkins::CSkinContainer::operator<(const CSkinContainer &Other) const
@@ -357,6 +354,7 @@ bool CSkins::LoadSkinData(const char *pName, CSkinLoadData &Data) const
 		Data.m_BloodColor = ColorRGBA(NormalizedColor.x, NormalizedColor.y, NormalizedColor.z);
 	}
 
+	Data.m_Metrics.Reset();
 	CheckMetrics(Data.m_Metrics.m_Body, Data.m_Info.m_pData, Pitch, 0, 0, BodyWidth, BodyHeight);
 	CheckMetrics(Data.m_Metrics.m_Body, Data.m_Info.m_pData, Pitch, BodyOutlineOffsetX, BodyOutlineOffsetY, BodyOutlineWidth, BodyOutlineHeight);
 	CheckMetrics(Data.m_Metrics.m_Feet, Data.m_Info.m_pData, Pitch, FeetOffsetX, FeetOffsetY, FeetWidth, FeetHeight);
@@ -441,14 +439,6 @@ void CSkins::LoadSkinFinish(CSkinContainer *pSkinContainer, const CSkinLoadData 
 		Skin.m_ColorableSkin.m_aEyes[i] = Graphics()->LoadSpriteTexture(Data.m_InfoGrayscale, std::nullopt, &g_pData->m_aSprites[SPRITE_TEE_EYE_NORMAL + i]);
 	}
 
- // Create reusable white silhouette masks once per skin, never per frame.
- // Preserve alpha: multiplication cannot tint the original black outlines.
- CImageInfo Mask = Data.m_Info.DeepCopy();
- for(size_t i = 0; i < (size_t)Mask.m_Width * Mask.m_Height; ++i)
-  Mask.m_pData[i * 4] = Mask.m_pData[i * 4 + 1] = Mask.m_pData[i * 4 + 2] = 255;
- Skin.m_OriginalSkin.m_PrismBodyMask = Graphics()->LoadSpriteTexture(Mask, std::nullopt, &g_pData->m_aSprites[SPRITE_TEE_BODY_OUTLINE]);
- Skin.m_OriginalSkin.m_PrismFeetMask = Graphics()->LoadSpriteTexture(Mask, std::nullopt, &g_pData->m_aSprites[SPRITE_TEE_FOOT_OUTLINE]);
- Mask.Free();
 	Skin.m_Metrics = Data.m_Metrics;
 	Skin.m_BloodColor = Data.m_BloodColor;
 
@@ -522,6 +512,7 @@ void CSkins::OnShutdown()
 		if(pSkinContainer->m_pLoadJob)
 		{
 			pSkinContainer->m_pLoadJob->Abort();
+			pSkinContainer->m_pLoadJob = nullptr;
 		}
 	}
 	m_Skins.clear();
@@ -697,6 +688,7 @@ void CSkins::Refresh(TSkinLoadedCallback &&SkinLoadedCallback)
 		if(pSkinContainer->m_pLoadJob)
 		{
 			pSkinContainer->m_pLoadJob->Abort();
+			pSkinContainer->m_pLoadJob = nullptr;
 		}
 		if(pSkinContainer->m_pSkin)
 		{
@@ -1150,4 +1142,3 @@ void CSkins::ConchainRefreshSkinList(IConsole::IResult *pResult, void *pUserData
 		pThis->m_SkinList.ForceRefresh();
 	}
 }
-

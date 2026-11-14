@@ -62,21 +62,18 @@ void CProofMode::InitMenuBackgroundPositions()
 	std::array<vec2, CMenuBackground::NUM_POS> aBackgroundPositions = GenerateMenuBackgroundPositions();
 	State.m_vMenuBackgroundPositions.assign(aBackgroundPositions.begin(), aBackgroundPositions.end());
 
-	if(Map()->m_pGameLayer)
+	for(int y = 0; y < Map()->m_pGameLayer->m_Height; ++y)
 	{
-		for(int y = 0; y < Map()->m_pGameLayer->m_Height; ++y)
+		for(int x = 0; x < Map()->m_pGameLayer->m_Width; ++x)
 		{
-			for(int x = 0; x < Map()->m_pGameLayer->m_Width; ++x)
+			CTile Tile = Map()->m_pGameLayer->GetTile(x, y);
+			if(Tile.m_Index >= TILE_TIME_CHECKPOINT_FIRST && Tile.m_Index <= TILE_TIME_CHECKPOINT_LAST)
 			{
-				CTile Tile = Map()->m_pGameLayer->GetTile(x, y);
-				if(Tile.m_Index >= TILE_TIME_CHECKPOINT_FIRST && Tile.m_Index <= TILE_TIME_CHECKPOINT_LAST)
-				{
-					int ArrayIndex = std::clamp<int>((Tile.m_Index - TILE_TIME_CHECKPOINT_FIRST), 0, CMenuBackground::NUM_POS);
-					State.m_vMenuBackgroundPositions[ArrayIndex] = vec2(x * 32.0f + 16.0f, y * 32.0f + 16.0f);
-				}
-
-				x += Tile.m_Skip;
+				int ArrayIndex = std::clamp<int>((Tile.m_Index - TILE_TIME_CHECKPOINT_FIRST), 0, CMenuBackground::NUM_POS);
+				State.m_vMenuBackgroundPositions[ArrayIndex] = vec2(x * 32.0f + 16.0f, y * 32.0f + 16.0f);
 			}
+
+			x += Tile.m_Skip;
 		}
 	}
 
@@ -154,7 +151,7 @@ void CProofMode::RenderScreenSizes()
 			Graphics()->SetColor(1, 0, 0, 1);
 			for(int Pass = 0; Pass < 2; Pass++)
 			{
-				const float aAspects[] = {4.0f / 3.0f, 16.0f / 10.0f, 5.0f / 4.0f, 16.0f / 9.0f};
+				const float aAspects[] = {4.0f / 3.0f, 16.0f / 10.0f};
 				const ColorRGBA aColors[] = {ColorRGBA(1.0f, 0.0f, 0.0f, 1.0f), ColorRGBA(0.0f, 1.0f, 0.0f, 1.0f)};
 				float Zoom = IsModeMenu() ? 0.7f : 1.0f;
 				CScreenRect ScreenRect = Graphics()->MapScreenToWorld(
@@ -181,23 +178,27 @@ void CProofMode::RenderScreenSizes()
 			{
 				Graphics()->SetColor(0, 1, 0, 0.3f);
 
-				const std::vector<vec2> &Positions = MenuBackgroundPositions();
-				std::set<int> Indices;
-				for(int i = 0; i < (int)Positions.size(); i++)
-					Indices.insert(i);
+				const std::vector<vec2> &vPositions = MenuBackgroundPositions();
+				const vec2 CurrentPos = vPositions[CurrentMenuProofIndex()];
+				bool aSkip[CMenuBackground::NUM_POS];
+				std::fill(std::begin(aSkip), std::end(aSkip), false);
 
-				while(!Indices.empty())
+				for(int i = 0; i < (int)vPositions.size(); i++)
 				{
-					int i = *Indices.begin();
-					Indices.erase(i);
-					for(int k : MenuBackgroundCollisions(i))
-						Indices.erase(k);
-
-					vec2 Pos = Positions[i];
-					Pos += WorldOffset - Positions[CurrentMenuProofIndex()];
-
-					if(Pos == WorldOffset)
+					if(aSkip[i])
+					{
 						continue;
+					}
+					for(int k : MenuBackgroundCollisions(i))
+					{
+						aSkip[k] = true;
+					}
+
+					const vec2 Pos = vPositions[i] + (WorldOffset - CurrentPos);
+					if(Pos == WorldOffset)
+					{
+						continue;
+					}
 
 					Graphics()->DrawCircle(Pos.x, Pos.y - 3.0f, 20.0f, 32);
 				}
@@ -236,6 +237,7 @@ void CProofMode::SetModeIngame()
 void CProofMode::SetModeMenu()
 {
 	Map()->m_ProofModeState.m_ProofBorders = EProofBorder::MENU;
+	InitMenuBackgroundPositions();
 }
 
 int CProofMode::CurrentMenuProofIndex() const

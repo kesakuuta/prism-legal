@@ -1,3 +1,4 @@
+#include <base/chinese_hat.h>
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #ifndef GAME_CLIENT_RENDER_H
@@ -143,7 +144,6 @@ public:
 	public:
 		void Reset()
 		{
-			for(auto &Texture : m_aPrismMasks) Texture.Invalidate();
 			for(auto &Texture : m_aOriginalTextures)
 			{
 				Texture.Invalidate();
@@ -162,7 +162,6 @@ public:
 		}
 
 		IGraphics::CTextureHandle m_aOriginalTextures[protocol7::NUM_SKINPARTS];
-		IGraphics::CTextureHandle m_aPrismMasks[protocol7::NUM_SKINPARTS];
 		IGraphics::CTextureHandle m_aColorableTextures[protocol7::NUM_SKINPARTS];
 		bool m_aUseCustomColors[protocol7::NUM_SKINPARTS];
 		ColorRGBA m_aColors[protocol7::NUM_SKINPARTS];
@@ -240,8 +239,12 @@ public:
 	static void GetRenderTeeOffsetToRenderedTee(const CAnimState *pAnim, const CTeeRenderInfo *pInfo, vec2 &TeeOffsetToMid);
 	// object render methods
 	void RenderTee(const CAnimState *pAnim, const CTeeRenderInfo *pInfo, int Emote, vec2 Dir, vec2 Pos, float Alpha = 1.0f) const;
+	void RenderChineseHat(const CAnimState *pAnim, const CTeeRenderInfo *pInfo, vec2 Dir, vec2 Pos, float Alpha = 1.0f) const;
 	void RenderPrismTee(const CAnimState *pAnim, const CTeeRenderInfo *pInfo, vec2 Dir, vec2 Pos, float Alpha, bool Local) const;
+	// renders an idle tee so that it is visually centered at Center
+	void RenderIdleTeeAtCenter(const CTeeRenderInfo *pInfo, vec2 Center, int Emote = EMOTE_NORMAL, vec2 Dir = vec2(1.0f, 0.0f), float Alpha = 1.0f) const;
+
+	static ColorRGBA GetPingTextColor(int Latency);
 };
 
 #endif
-

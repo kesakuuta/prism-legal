@@ -1,0 +1,13 @@
+// Chinese Conical Hat (斗笠) configuration. Intentionally no include guard: DDNet X-macro configuration.
+MACRO_CONFIG_INT(PrismHatEnabled, prism_hat_enabled, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Enable Chinese conical hat on Tee")
+MACRO_CONFIG_INT(PrismHatMode, prism_hat_mode, 0, 0, 2, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Hat color mode: 0 static, 1 rainbow, 2 shimmering monochrome")
+MACRO_CONFIG_COL(PrismHatColor, prism_hat_color, 1441600, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Hat base color")
+MACRO_CONFIG_COL(PrismHatRibColor, prism_hat_rib_color, 0, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Hat ribs/lines color (0 = black)")
+MACRO_CONFIG_INT(PrismHatAlpha, prism_hat_alpha, 65, 10, 100, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Hat facet transparency/opacity percent")
+MACRO_CONFIG_INT(PrismHatRibAlpha, prism_hat_rib_alpha, 90, 10, 100, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Hat ribs transparency/opacity percent")
+MACRO_CONFIG_INT(PrismHatSpeed, prism_hat_speed, 100, 10, 500, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Hat animation speed (rainbow cycle or shimmer)")
+MACRO_CONFIG_INT(PrismHatScale, prism_hat_scale, 100, 50, 200, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Hat size scale percent")
+MACRO_CONFIG_INT(PrismHatOffsetY, prism_hat_offset_y, 0, -50, 50, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Hat vertical offset adjustment")
+MACRO_CONFIG_INT(PrismHatTilt, prism_hat_tilt, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Tilt hat with Tee movement and aim direction")
+MACRO_CONFIG_INT(PrismHatLocal, prism_hat_local, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show hat on local Tee")
+MACRO_CONFIG_INT(PrismHatOthers, prism_hat_others, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show hat on other Tees")

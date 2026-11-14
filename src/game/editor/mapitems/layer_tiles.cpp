@@ -7,7 +7,6 @@
 #include <engine/graphics.h>
 #include <engine/keys.h>
 #include <engine/shared/config.h>
-#include <engine/shared/map.h>
 
 #include <game/editor/editor.h>
 #include <game/editor/editor_actions.h>
@@ -118,10 +117,15 @@ void CLayerTiles::SetTileIgnoreHistory(int x, int y, CTile Tile) const
 
 void CLayerTiles::RecordStateChange(int x, int y, CTile Previous, CTile Tile)
 {
-	if(!m_TilesHistory[y][x].m_Changed)
-		m_TilesHistory[y][x] = STileStateChange{true, Previous, Tile};
+	STileStateChange &Change = m_TilesHistory[y][x];
+	if(Change.m_Changed)
+	{
+		Change.m_Current = Tile;
+	}
 	else
-		m_TilesHistory[y][x].m_Current = Tile;
+	{
+		Change = STileStateChange{true, Previous, Tile};
+	}
 }
 
 void CLayerTiles::PrepareForSave()
@@ -138,20 +142,6 @@ void CLayerTiles::PrepareForSave()
 	}
 }
 
-void CLayerTiles::ExtractTiles(const CTile *pSavedTiles, size_t SavedTilesSize) const
-{
-	const size_t DestSize = (size_t)m_Width * m_Height;
-	if(SavedTilesSize >= DestSize)
-	{
-		mem_copy(m_pTiles, pSavedTiles, DestSize * sizeof(CTile));
-		for(size_t TileIndex = 0; TileIndex < DestSize; ++TileIndex)
-		{
-			m_pTiles[TileIndex].m_Skip = 0;
-			m_pTiles[TileIndex].m_MustBe0 = 0;
-		}
-	}
-}
-
 void CLayerTiles::MakePalette() const
 {
 	for(int y = 0; y < m_Height; y++)
@@ -162,6 +152,8 @@ void CLayerTiles::MakePalette() const
 void CLayerTiles::Render(const CEditorMap *pRenderMap)
 {
 	IGraphics::CTextureHandle Texture;
+	bool RenderOpaque = false;
+	ColorRGBA Color = ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f);
 	if(m_HasGame)
 	{
 		Texture = Editor()->GetEntitiesTexture();
@@ -186,24 +178,39 @@ void CLayerTiles::Render(const CEditorMap *pRenderMap)
 	{
 		Texture = Editor()->GetTuneTexture();
 	}
-	else if(m_Image >= 0 && (size_t)m_Image < pRenderMap->m_vpImages.size())
+	else
 	{
-		const auto &pImage = pRenderMap->m_vpImages[m_Image];
-		if(pImage->m_Width % 16 == 0 && pImage->m_Height % 16 == 0)
+		if(m_Image >= 0 && (size_t)m_Image < pRenderMap->m_vpImages.size())
 		{
-			Texture = pImage->m_Texture;
+			const auto &pImage = pRenderMap->m_vpImages[m_Image];
+			if(pImage->m_Width % 16 == 0 && pImage->m_Height % 16 == 0)
+			{
+				Texture = pImage->m_Texture;
+			}
+			RenderOpaque = true;
+		}
+
+		ColorRGBA ColorEnv = ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f);
+		pRenderMap->m_EnvelopeEvaluator.EnvelopeEval(m_ColorEnvOffset, m_ColorEnv, ColorEnv, 4);
+		Color = ColorRGBA(m_Color.r / 255.0f, m_Color.g / 255.0f, m_Color.b / 255.0f, m_Color.a / 255.0f).Multiply(ColorEnv);
+		if(Color.a <= 254.0f / 255.0f)
+		{
+			RenderOpaque = false;
 		}
 	}
 	Graphics()->TextureSet(Texture);
 
-	ColorRGBA ColorEnv = ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f);
-	pRenderMap->m_EnvelopeEvaluator.EnvelopeEval(m_ColorEnvOffset, m_ColorEnv, ColorEnv, 4);
-	const ColorRGBA Color = ColorRGBA(m_Color.r / 255.0f, m_Color.g / 255.0f, m_Color.b / 255.0f, m_Color.a / 255.0f).Multiply(ColorEnv);
-
-	Graphics()->BlendNone();
-	Editor()->RenderMap()->RenderTilemap(m_pTiles, m_Width, m_Height, 32.0f, Color, LAYERRENDERFLAG_OPAQUE);
-	Graphics()->BlendNormal();
-	Editor()->RenderMap()->RenderTilemap(m_pTiles, m_Width, m_Height, 32.0f, Color, LAYERRENDERFLAG_TRANSPARENT);
+	if(RenderOpaque)
+	{
+		Graphics()->BlendNone();
+		Editor()->RenderMap()->RenderTilemap(m_pTiles, m_Width, m_Height, 32.0f, Color, LAYERRENDERFLAG_OPAQUE);
+		Graphics()->BlendNormal();
+		Editor()->RenderMap()->RenderTilemap(m_pTiles, m_Width, m_Height, 32.0f, Color, LAYERRENDERFLAG_TRANSPARENT);
+	}
+	else
+	{
+		Editor()->RenderMap()->RenderTilemap(m_pTiles, m_Width, m_Height, 32.0f, Color, 0);
+	}
 
 	// Render DDRace Layers
 	if(m_RenderOverlays)
@@ -340,7 +347,7 @@ int CLayerTiles::BrushGrab(CLayerGroup *pBrush, CUIRect Rect)
 				pGrabbed->m_pTiles[y * pGrabbed->m_Width + x] = GetTile(r.x + x, r.y + y);
 
 				// copy the tele data
-				if(!Editor()->Input()->KeyIsPressed(KEY_SPACE))
+				if(!Editor()->m_ShowPicker)
 				{
 					pGrabbed->m_pTeleTile[y * pGrabbed->m_Width + x] = static_cast<CLayerTele *>(this)->m_pTeleTile[(r.y + y) * m_Width + (r.x + x)];
 					unsigned char TgtIndex = pGrabbed->m_pTeleTile[y * pGrabbed->m_Width + x].m_Type;
@@ -384,7 +391,7 @@ int CLayerTiles::BrushGrab(CLayerGroup *pBrush, CUIRect Rect)
 				pGrabbed->m_pTiles[y * pGrabbed->m_Width + x] = GetTile(r.x + x, r.y + y);
 
 				// copy the speedup data
-				if(!Editor()->Input()->KeyIsPressed(KEY_SPACE))
+				if(!Editor()->m_ShowPicker)
 				{
 					pGrabbed->m_pSpeedupTile[y * pGrabbed->m_Width + x] = static_cast<CLayerSpeedup *>(this)->m_pSpeedupTile[(r.y + y) * m_Width + (r.x + x)];
 					if(IsValidSpeedupTile(pGrabbed->m_pSpeedupTile[y * pGrabbed->m_Width + x].m_Type))
@@ -428,7 +435,7 @@ int CLayerTiles::BrushGrab(CLayerGroup *pBrush, CUIRect Rect)
 				pGrabbed->m_pTiles[y * pGrabbed->m_Width + x] = GetTile(r.x + x, r.y + y);
 
 				// copy the switch data
-				if(!Editor()->Input()->KeyIsPressed(KEY_SPACE))
+				if(!Editor()->m_ShowPicker)
 				{
 					pGrabbed->m_pSwitchTile[y * pGrabbed->m_Width + x] = static_cast<CLayerSwitch *>(this)->m_pSwitchTile[(r.y + y) * m_Width + (r.x + x)];
 					if(IsValidSwitchTile(pGrabbed->m_pSwitchTile[y * pGrabbed->m_Width + x].m_Type))
@@ -470,7 +477,7 @@ int CLayerTiles::BrushGrab(CLayerGroup *pBrush, CUIRect Rect)
 			{
 				pGrabbed->m_pTiles[y * pGrabbed->m_Width + x] = GetTile(r.x + x, r.y + y);
 
-				if(!Editor()->Input()->KeyIsPressed(KEY_SPACE))
+				if(!Editor()->m_ShowPicker)
 				{
 					pGrabbed->m_pTuneTile[y * pGrabbed->m_Width + x] = static_cast<CLayerTune *>(this)->m_pTuneTile[(r.y + y) * m_Width + (r.x + x)];
 					if(IsValidTuneTile(pGrabbed->m_pTuneTile[y * pGrabbed->m_Width + x].m_Type))

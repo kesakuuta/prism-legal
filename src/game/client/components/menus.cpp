@@ -122,7 +122,7 @@ int CMenus::DoButton_Toggle(const void *pId, int Checked, const CUIRect *pRect, 
 	return Active ? Ui()->DoButtonLogic(pId, Checked, pRect, Flags) : 0;
 }
 
-int CMenus::DoButton_Menu(CButtonContainer *pButtonContainer, const char *pText, int Checked, const CUIRect *pRect, const unsigned Flags, const char *pImageName, int Corners, float Rounding, float FontFactor, ColorRGBA Color)
+int CMenus::DoButton_Menu(CButtonContainer *pButtonContainer, const char *pText, int Checked, const CUIRect *pRect, const unsigned Flags, const char *pImageName, int Corners, float Rounding, float FontFactor, ColorRGBA Color, const void *pImageHotId)
 {
 	CUIRect Text = *pRect;
 
@@ -135,13 +135,14 @@ int CMenus::DoButton_Menu(CButtonContainer *pButtonContainer, const char *pText,
 	if(pImageName)
 	{
 		CUIRect Image;
-		pRect->VSplitRight(pRect->h * 4.0f, &Text, &Image); // always correct ratio for image
+		pRect->VSplitRight(pRect->h * BUTTON_IMAGE_WIDTH_FACTOR, &Text, &Image); // always correct ratio for image
 
 		// render image
 		const CMenuImage *pImage = FindMenuImage(pImageName);
 		if(pImage)
 		{
-			Graphics()->TextureSet(Ui()->HotItem() == pButtonContainer ? pImage->m_OrgTexture : pImage->m_GreyTexture);
+			const bool ImageHot = Ui()->HotItem() == pButtonContainer || (pImageHotId != nullptr && Ui()->HotItem() == pImageHotId);
+			Graphics()->TextureSet(ImageHot ? pImage->m_OrgTexture : pImage->m_GreyTexture);
 			Graphics()->WrapClamp();
 			Graphics()->QuadsBegin();
 			Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -471,7 +472,7 @@ void CMenus::RenderMenubar(CUIRect Box, IClient::EClientState ClientState)
 			Client()->Quit();
 		}
 	}
-	GameClient()->m_Tooltips.DoToolTip(&s_QuitButton, &Button, Localize("Quit"));
+	Ui()->DoToolTip(&s_QuitButton, &Button, Localize("Quit"));
 
 	Box.VSplitRight(10.0f, &Box, nullptr);
 	Box.VSplitRight(33.0f, &Box, &Button);
@@ -480,7 +481,7 @@ void CMenus::RenderMenubar(CUIRect Box, IClient::EClientState ClientState)
 	{
 		NewPage = PAGE_SETTINGS;
 	}
-	GameClient()->m_Tooltips.DoToolTip(&s_SettingsButton, &Button, Localize("Settings"));
+	Ui()->DoToolTip(&s_SettingsButton, &Button, Localize("Settings"));
 
 	Box.VSplitRight(10.0f, &Box, nullptr);
 	Box.VSplitRight(33.0f, &Box, &Button);
@@ -489,7 +490,7 @@ void CMenus::RenderMenubar(CUIRect Box, IClient::EClientState ClientState)
 	{
 		g_Config.m_ClEditor = 1;
 	}
-	GameClient()->m_Tooltips.DoToolTip(&s_EditorButton, &Button, Localize("Editor"));
+	Ui()->DoToolTip(&s_EditorButton, &Button, Localize("Editor"));
 
 	if(ClientState == IClient::STATE_OFFLINE)
 	{
@@ -500,7 +501,7 @@ void CMenus::RenderMenubar(CUIRect Box, IClient::EClientState ClientState)
 		{
 			NewPage = PAGE_DEMOS;
 		}
-		GameClient()->m_Tooltips.DoToolTip(&s_DemoButton, &Button, Localize("Demos"));
+		Ui()->DoToolTip(&s_DemoButton, &Button, Localize("Demos"));
 		Box.VSplitRight(10.0f, &Box, nullptr);
 
 		Box.VSplitLeft(33.0f, &Button, &Box);
@@ -536,7 +537,7 @@ void CMenus::RenderMenubar(CUIRect Box, IClient::EClientState ClientState)
 		{
 			m_ShowStart = true;
 		}
-		GameClient()->m_Tooltips.DoToolTip(&s_StartButton, &Button, Localize("Main menu"));
+		Ui()->DoToolTip(&s_StartButton, &Button, Localize("Main menu"));
 
 		const float BrowserButtonWidth = 75.0f;
 		Box.VSplitLeft(10.0f, nullptr, &Box);
@@ -546,7 +547,7 @@ void CMenus::RenderMenubar(CUIRect Box, IClient::EClientState ClientState)
 		{
 			NewPage = PAGE_INTERNET;
 		}
-		GameClient()->m_Tooltips.DoToolTip(&s_InternetButton, &Button, Localize("Internet"));
+		Ui()->DoToolTip(&s_InternetButton, &Button, Localize("Internet"));
 
 		Box.VSplitLeft(BrowserButtonWidth, &Button, &Box);
 		static CButtonContainer s_LanButton;
@@ -554,7 +555,7 @@ void CMenus::RenderMenubar(CUIRect Box, IClient::EClientState ClientState)
 		{
 			NewPage = PAGE_LAN;
 		}
-		GameClient()->m_Tooltips.DoToolTip(&s_LanButton, &Button, Localize("LAN"));
+		Ui()->DoToolTip(&s_LanButton, &Button, Localize("LAN"));
 
 		Box.VSplitLeft(BrowserButtonWidth, &Button, &Box);
 		static CButtonContainer s_FavoritesButton;
@@ -562,9 +563,10 @@ void CMenus::RenderMenubar(CUIRect Box, IClient::EClientState ClientState)
 		{
 			NewPage = PAGE_FAVORITES;
 		}
-		GameClient()->m_Tooltips.DoToolTip(&s_FavoritesButton, &Button, Localize("Favorites"));
+		Ui()->DoToolTip(&s_FavoritesButton, &Button, Localize("Favorites"));
 
-		const int MaxPage = PAGE_FAVORITES + ServerBrowser()->FavoriteCommunities().size();
+		const std::vector<const CCommunity *> vpFavoriteCommunities = ServerBrowser()->FavoriteCommunities();
+		const int MaxPage = PAGE_FAVORITES + vpFavoriteCommunities.size();
 		if(
 			!Ui()->IsPopupOpen() &&
 			CLineInput::GetActiveInput() == nullptr &&
@@ -590,7 +592,7 @@ void CMenus::RenderMenubar(CUIRect Box, IClient::EClientState ClientState)
 		static_assert(std::size(s_aFavoriteCommunityButtons) == (size_t)PAGE_FAVORITE_COMMUNITY_5 - PAGE_FAVORITE_COMMUNITY_1 + 1);
 		static_assert(std::size(s_aFavoriteCommunityButtons) == (size_t)BIT_TAB_FAVORITE_COMMUNITY_5 - BIT_TAB_FAVORITE_COMMUNITY_1 + 1);
 		static_assert(std::size(s_aFavoriteCommunityButtons) == (size_t)IServerBrowser::TYPE_FAVORITE_COMMUNITY_5 - IServerBrowser::TYPE_FAVORITE_COMMUNITY_1 + 1);
-		for(const CCommunity *pCommunity : ServerBrowser()->FavoriteCommunities())
+		for(const CCommunity *pCommunity : vpFavoriteCommunities)
 		{
 			if(Box.w < BrowserButtonWidth)
 				break;
@@ -600,7 +602,7 @@ void CMenus::RenderMenubar(CUIRect Box, IClient::EClientState ClientState)
 			{
 				NewPage = Page;
 			}
-			GameClient()->m_Tooltips.DoToolTip(&s_aFavoriteCommunityButtons[FavoriteCommunityIndex], &Button, pCommunity->Name());
+			Ui()->DoToolTip(&s_aFavoriteCommunityButtons[FavoriteCommunityIndex], &Button, pCommunity->Name());
 
 			++FavoriteCommunityIndex;
 			if(FavoriteCommunityIndex >= std::size(s_aFavoriteCommunityButtons))
@@ -665,7 +667,7 @@ void CMenus::RenderMenubar(CUIRect Box, IClient::EClientState ClientState)
 			{
 				NewPage = PAGE_DEMOS;
 			}
-			GameClient()->m_Tooltips.DoToolTip(&s_DemoButton, &Button, Localize("Demos"));
+			Ui()->DoToolTip(&s_DemoButton, &Button, Localize("Demos"));
 			Box.VSplitRight(10.0f, &Box, nullptr);
 
 			TextRender()->SetRenderFlags(0);
@@ -682,18 +684,20 @@ void CMenus::RenderMenubar(CUIRect Box, IClient::EClientState ClientState)
 	}
 }
 
-void CMenus::RenderLoading(const char *pCaption, const char *pContent, int IncreaseCounter)
+void CMenus::RenderLoadingDirect(const char *pCaption, const char *pContent, std::optional<float> Progress)
 {
 	// TODO: not supported right now due to separate render thread
 
-	const int CurLoadRenderCount = m_LoadingState.m_Current;
-	m_LoadingState.m_Current += IncreaseCounter;
-	dbg_assert(m_LoadingState.m_Current <= m_LoadingState.m_Total, "Invalid progress for RenderLoading");
-
 	// make sure that we don't render for each little thing we load
 	// because that will slow down loading if we have vsync
+	// make sure we otherwise update the progressbar if we have one for a smoother animation
 	const std::chrono::nanoseconds Now = time_get_nanoseconds();
-	if(Now - m_LoadingState.m_LastRender < std::chrono::nanoseconds(1s) / 60l)
+
+	/* Limit FPS to something reasonable. Ideally the values would just be stored and the rendering would be on a **consistent** timer with 60Hz
+	 * Waiting for calls of this function makes the rendering stutter, which you can notice with the background
+	 */
+	int RefreshRate = g_Config.m_GfxVsync || !Progress.has_value() ? 60 : (in_range(g_Config.m_GfxRefreshRate, 1, 300) ? g_Config.m_GfxRefreshRate : 300);
+	if(RefreshRate > 0 && Now - m_LoadingState.m_LastRender < std::chrono::nanoseconds(1s) / RefreshRate)
 		return;
 
 	// need up date this here to get correct
@@ -730,18 +734,28 @@ void CMenus::RenderLoading(const char *pCaption, const char *pContent, int Incre
 	Box.HSplitTop(24.0f, &Label, &Box);
 	Ui()->DoLabel(&Label, pContent, 20.0f, TEXTALIGN_MC);
 
-	if(m_LoadingState.m_Total > 0)
+	if(Progress.has_value())
 	{
 		CUIRect ProgressBar;
 		Box.HSplitBottom(30.0f, &Box, nullptr);
 		Box.HSplitBottom(25.0f, &Box, &ProgressBar);
 		ProgressBar.VMargin(20.0f, &ProgressBar);
-		Ui()->RenderProgressBar(ProgressBar, CurLoadRenderCount / (float)m_LoadingState.m_Total);
+		Ui()->RenderProgressBar(ProgressBar, std::clamp(Progress.value(), 0.0f, 1.0f));
 	}
 
 	Graphics()->SetColor(1.0, 1.0, 1.0, 1.0);
 
 	Client()->UpdateAndSwap();
+}
+
+void CMenus::RenderLoading(const char *pCaption, const char *pContent, int IncreaseCounter)
+{
+	// does not support multithreading
+
+	const int CurLoadRenderCount = m_LoadingState.m_Current;
+	m_LoadingState.m_Current += IncreaseCounter;
+	dbg_assert(m_LoadingState.m_Current <= m_LoadingState.m_Total, "Invalid progress for RenderLoading");
+	RenderLoadingDirect(pCaption, pContent, m_LoadingState.m_Total > 0 ? std::make_optional(CurLoadRenderCount / (float)m_LoadingState.m_Total) : std::nullopt);
 }
 
 void CMenus::FinishLoading()
@@ -891,6 +905,8 @@ void CMenus::UpdateMusicState()
 		GameClient()->m_Sounds.Enqueue(CSounds::CHN_MUSIC, SOUND_MENU);
 	else if(!ShouldPlay && GameClient()->m_Sounds.IsPlaying(SOUND_MENU))
 		GameClient()->m_Sounds.Stop(SOUND_MENU);
+	if(!ShouldPlay)
+		GameClient()->m_MapSounds.StopAll();
 }
 
 void CMenus::PopupMessage(const char *pTitle, const char *pMessage, const char *pButtonLabel, int NextPopup, FPopupButtonCallback pfnButtonCallback)
@@ -1446,7 +1462,7 @@ void CMenus::RenderPopupFullscreen(CUIRect Screen)
 				Name.VSplitLeft(2.5f * Name.h, &Icon, &Name);
 				m_CommunityIcons.Render(pIcon, Icon, true);
 				Ui()->DoButtonLogic(&s_CommunityTooltipButtonId, 0, &Icon, BUTTONFLAG_NONE);
-				GameClient()->m_Tooltips.DoToolTip(&s_CommunityTooltipButtonId, &Icon, pCommunity->Name());
+				Ui()->DoToolTip(&s_CommunityTooltipButtonId, &Icon, pCommunity->Name());
 			}
 
 			Ui()->DoLabel(&Label, Localize("Name"), 18.0f, TEXTALIGN_ML);
@@ -1900,7 +1916,7 @@ void CMenus::RenderPopupFullscreen(CUIRect Screen)
 		}
 		else if(m_JoinTutorial.m_LocalServerState == CJoinTutorial::ELocalServerState::WAITING_START)
 		{
-			if(LastStateChangeSeconds >= 5.0f)
+			if(LastStateChangeSeconds >= 5.0f && !GameClient()->m_LocalServer.IsStarting())
 			{
 				ShowFinalErrorMessage();
 			}
@@ -1909,7 +1925,7 @@ void CMenus::RenderPopupFullscreen(CUIRect Screen)
 				if(LastStateChangeSeconds >= 2.0f &&
 					GameClient()->m_LocalServer.IsServerRunning())
 				{
-					Client()->Connect("localhost");
+					GameClient()->m_LocalServer.Connect();
 				}
 
 				pProgressLabel = Localize("Waiting for local server to start…");
@@ -1928,6 +1944,7 @@ void CMenus::RenderPopupFullscreen(CUIRect Screen)
 			Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE) ||
 			Ui()->ConsumeHotkey(CUi::HOTKEY_ENTER))
 		{
+			GameClient()->m_LocalServer.CancelConnect();
 			m_Popup = POPUP_NONE;
 		}
 	}
@@ -2075,18 +2092,18 @@ void CMenus::RenderPopupConnecting(CUIRect Screen)
 		const char *pConnectivityLabel = "";
 		switch(Client()->UdpConnectivity(Client()->ConnectNetTypes()))
 		{
-		case IClient::CONNECTIVITY_UNKNOWN:
+		case IClient::EConnectivity::UNKNOWN:
 			break;
-		case IClient::CONNECTIVITY_CHECKING:
+		case IClient::EConnectivity::CHECKING:
 			pConnectivityLabel = Localize("Trying to determine UDP connectivity…");
 			break;
-		case IClient::CONNECTIVITY_UNREACHABLE:
+		case IClient::EConnectivity::UNREACHABLE:
 			pConnectivityLabel = Localize("UDP seems to be filtered.");
 			break;
-		case IClient::CONNECTIVITY_DIFFERING_UDP_TCP_IP_ADDRESSES:
+		case IClient::EConnectivity::DIFFERING_UDP_TCP_IP_ADDRESSES:
 			pConnectivityLabel = Localize("UDP and TCP IP addresses seem to be different. Try disabling VPN, proxy or network accelerators.");
 			break;
-		case IClient::CONNECTIVITY_REACHABLE:
+		case IClient::EConnectivity::REACHABLE:
 			pConnectivityLabel = Localize("No answer from server yet.");
 			break;
 		}
@@ -2163,19 +2180,19 @@ void CMenus::RenderPopupLoading(CUIRect Screen)
 		str_copy(aTitle, Localize("Connected"));
 		switch(Client()->LoadingStateDetail())
 		{
-		case IClient::LOADING_STATE_DETAIL_INITIAL:
+		case IClient::ELoadingStateDetail::INITIAL:
 			str_copy(aLabel1, Localize("Getting game info"));
 			break;
-		case IClient::LOADING_STATE_DETAIL_LOADING_MAP:
+		case IClient::ELoadingStateDetail::LOADING_MAP:
 			str_copy(aLabel1, Localize("Loading map file from storage"));
 			break;
-		case IClient::LOADING_STATE_DETAIL_LOADING_DEMO:
+		case IClient::ELoadingStateDetail::LOADING_DEMO:
 			str_copy(aLabel1, Localize("Loading demo file from storage"));
 			break;
-		case IClient::LOADING_STATE_DETAIL_SENDING_READY:
+		case IClient::ELoadingStateDetail::SENDING_READY:
 			str_copy(aLabel1, Localize("Requesting to join the game"));
 			break;
-		case IClient::LOADING_STATE_DETAIL_GETTING_READY:
+		case IClient::ELoadingStateDetail::GETTING_READY:
 			str_copy(aLabel1, Localize("Sending initial client info"));
 			break;
 		default:
@@ -2308,28 +2325,11 @@ bool CMenus::OnCursorMove(float x, float y, IInput::ECursorType CursorType)
 
 bool CMenus::OnInput(const IInput::CEvent &Event)
 {
-	if(m_PrismOpen && m_PrismCaptureBind >= 0 && (Event.m_Flags & IInput::FLAG_PRESS) && !(Event.m_Flags & IInput::FLAG_REPEAT))
-	{
-		int *apBind[] = {&g_Config.m_PrismDoubleBind, &g_Config.m_PrismStopBind,
-			&g_Config.m_PrismMacro1Bind, &g_Config.m_PrismMacro2Bind,
-			&g_Config.m_PrismMacro3Bind, &g_Config.m_PrismMacro4Bind};
-		if(m_PrismCaptureBind < 6)
-		{
-			if(Event.m_Key == KEY_ESCAPE || Event.m_Key == KEY_BACKSPACE)
-				*apBind[m_PrismCaptureBind] = 0;
-			else if(Event.m_Key != KEY_INSERT && Event.m_Key != KEY_F12)
-				*apBind[m_PrismCaptureBind] = Event.m_Key;
-		}
-		m_PrismCaptureBind = -1;
-		return true;
-	}
-
 	const bool Playing = Client()->State() == IClient::STATE_ONLINE || Client()->State() == IClient::STATE_DEMOPLAYBACK;
 	if(Playing && m_Popup == POPUP_NONE && (m_PrismOpen || !IsActive()) &&
 		(Event.m_Flags & IInput::FLAG_PRESS) && Event.m_Key == KEY_INSERT)
 	{
 		m_PrismOpen = !m_PrismOpen;
-		m_PrismCaptureBind = -1;
 		if(!m_PrismOpen)
 			Ui()->ClosePopupMenus();
 		Ui()->SetActiveItem(nullptr);
@@ -2357,8 +2357,8 @@ bool CMenus::OnInput(const IInput::CEvent &Event)
 		Ui()->OnInput(Event);
 		return true;
 	}
-	// Escape key is always handled to activate/deactivate the original menu.
-	if(((Event.m_Flags & IInput::FLAG_PRESS) && Event.m_Key == KEY_ESCAPE) || IsActive())
+	// Escape key is always handled to activate/deactivate menu
+	if((Event.m_Flags & IInput::FLAG_PRESS && Event.m_Key == KEY_ESCAPE) || IsActive())
 	{
 		Ui()->OnInput(Event);
 		return true;
@@ -2368,8 +2368,6 @@ bool CMenus::OnInput(const IInput::CEvent &Event)
 
 void CMenus::OnStateChange(int NewState, int OldState)
 {
-	m_PrismOpen = false;
-	m_PrismTransition = 0.0f;
 	// reset active item
 	Ui()->SetActiveItem(nullptr);
 
@@ -2420,50 +2418,12 @@ void CMenus::OnRender()
 {
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		SetActive(true);
-	bool UseSystemCursor = false;
-#if defined(CONF_FAMILY_WINDOWS)
-	UseSystemCursor = g_Config.m_PrismMenuCursor && (m_MenuActive || m_PrismOpen);
-#endif
-	if(UseSystemCursor != m_PrismSystemCursorActive)
-	{
-		m_PrismSystemCursorActive = UseSystemCursor;
-		if(UseSystemCursor)
-			Input()->MouseModeAbsolute();
-		Input()->SetMenuCursorVisible(UseSystemCursor);
-		if(!UseSystemCursor && !GameClient()->m_GameConsole.IsActive())
-			Input()->MouseModeRelative();
-	}
-	if(UseSystemCursor)
-		Ui()->SyncNativeMousePos(Input()->NativeMousePos());
 
 	if(Client()->State() == IClient::STATE_ONLINE && GameClient()->m_ServerMode == CGameClient::SERVERMODE_PUREMOD)
 	{
 		Client()->Disconnect();
 		SetActive(true);
 		PopupMessage(Localize("Disconnected"), Localize("The server is running a non-standard tuning on a pure game type."), Localize("Ok"));
-	}
-
-	// Prism is rendered after the world but before normal DDNet menus. Its input
-	// is captured by OnInput/OnCursorMove, never forwarded to movement controls.
-	if((m_PrismOpen || m_PrismTransition > 0.0f) &&
-		(Client()->State() == IClient::STATE_ONLINE || Client()->State() == IClient::STATE_DEMOPLAYBACK))
-	{
-		Ui()->MapScreen();
-		Ui()->StartCheck();
-		UpdateColors();
-		Ui()->Update();
-		if(m_PrismOpen && !Ui()->IsPopupOpen() && Ui()->ConsumeHotkey(CUi::HOTKEY_TAB))
-		{
-			m_PrismCategory = (m_PrismCategory + 1) % 8;
-			Ui()->SetActiveItem(nullptr);
-		}
-		RenderSettingsPrism(*Ui()->Screen());
-		Ui()->RenderPopupMenus();
-		if(m_PrismOpen && !UseSystemCursor)
-			RenderTools()->RenderCursor(Ui()->MousePos(), 24.0f);
-		Ui()->FinishCheck();
-		Ui()->ClearHotkeys();
-		return;
 	}
 
 	if(!IsActive())
@@ -2492,8 +2452,7 @@ void CMenus::OnRender()
 	if(IsActive())
 	{
 		Ui()->RenderBackButton();
-		if(!UseSystemCursor)
-			RenderTools()->RenderCursor(Ui()->MousePos(), 24.0f);
+		RenderTools()->RenderCursor(Ui()->MousePos(), 24.0f);
 	}
 
 	// render debug information
@@ -2584,6 +2543,26 @@ void CMenus::RenderBackground()
 
 	// restore screen
 	Ui()->MapScreen();
+
+	if((m_PrismOpen || m_PrismTransition > 0.0f) &&
+		(Client()->State() == IClient::STATE_ONLINE || Client()->State() == IClient::STATE_DEMOPLAYBACK))
+	{
+		Ui()->MapScreen();
+		Ui()->StartCheck();
+		UpdateColors();
+		Ui()->Update();
+		if(m_PrismOpen && !Ui()->IsPopupOpen() && Ui()->ConsumeHotkey(CUi::HOTKEY_TAB))
+		{
+			m_PrismCategory = (m_PrismCategory + 1) % 6;
+			Ui()->SetActiveItem(nullptr);
+		}
+		RenderSettingsPrism(*Ui()->Screen());
+		Ui()->RenderPopupMenus();
+		if(m_PrismOpen && !g_Config.m_PrismMenuCursor)
+			RenderTools()->RenderCursor(Ui()->MousePos(), 24.0f);
+		Ui()->FinishCheck();
+		Ui()->ClearHotkeys();
+	}
 }
 
 int CMenus::DoButton_CheckBox_Tristate(const void *pId, const char *pText, TRISTATE Checked, const CUIRect *pRect)

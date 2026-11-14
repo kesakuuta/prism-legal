@@ -3,6 +3,7 @@
 #include <base/log.h>
 
 #include <engine/demo.h>
+#include <engine/shared/config.h>
 #include <engine/sound.h>
 
 #include <game/client/components/camera.h>
@@ -19,6 +20,8 @@ CMapSounds::CMapSounds()
 
 void CMapSounds::Play(int Channel, int SoundId)
 {
+	if(!SoundEnabled())
+		return;
 	if(SoundId < 0 || SoundId >= m_Count)
 		return;
 
@@ -27,10 +30,21 @@ void CMapSounds::Play(int Channel, int SoundId)
 
 void CMapSounds::PlayAt(int Channel, int SoundId, vec2 Position)
 {
+	if(!SoundEnabled())
+		return;
 	if(SoundId < 0 || SoundId >= m_Count)
 		return;
 
 	GameClient()->m_Sounds.PlaySampleAt(Channel, m_aSounds[SoundId], 0, 1.0f, Position);
+}
+
+void CMapSounds::StopAll()
+{
+	for(auto &Source : m_vSourceQueue)
+	{
+		Sound()->StopVoice(Source.m_Voice);
+		Source.m_Voice = ISound::CVoiceHandle();
+	}
 }
 
 void CMapSounds::OnMapLoad()
@@ -60,6 +74,7 @@ void CMapSounds::OnMapLoad()
 			{
 				log_error("mapsounds", "Failed to load map sound %d: failed to load name.", i);
 				ShowWarning = true;
+				m_aSounds[i] = -1;
 				continue;
 			}
 			pName = "(error)";
@@ -79,6 +94,7 @@ void CMapSounds::OnMapLoad()
 			{
 				log_error("mapsounds", "Failed to load map sound %d: failed to load data.", i);
 				ShowWarning = true;
+				m_aSounds[i] = -1;
 				continue;
 			}
 			const int SoundDataSize = pMap->GetDataSize(pSound->m_SoundData);
@@ -192,6 +208,9 @@ void CMapSounds::OnRender()
 		}
 	}
 
+	CEnvelopeState &EnvEvaluator = GameClient()->m_MapLayersBackground.EnvEvaluator();
+	EnvEvaluator.Update();
+
 	const vec2 Center = GameClient()->m_Camera.m_Center;
 	for(const auto &Source : m_vSourceQueue)
 	{
@@ -199,7 +218,6 @@ void CMapSounds::OnRender()
 			continue;
 
 		ColorRGBA Position = ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f);
-		CEnvelopeState &EnvEvaluator = GameClient()->m_MapLayersBackground.EnvEvaluator();
 		EnvEvaluator.EnvelopeEval(Source.m_pSource->m_PosEnvOffset, Source.m_pSource->m_PosEnv, Position, 2);
 
 		float x = fx2f(Source.m_pSource->m_Position.x) + Position.r;
@@ -236,4 +254,9 @@ void CMapSounds::OnStateChange(int NewState, int OldState)
 {
 	if(NewState < IClient::STATE_ONLINE)
 		Clear();
+}
+
+bool CMapSounds::SoundEnabled()
+{
+	return g_Config.m_SndGame && g_Config.m_SndEnable;
 }

@@ -44,10 +44,6 @@ struct SScoreInfo
 
 class CHud : public CComponent
 {
-	void RenderPrismModules();
-	char m_aaPrismInputLabels[5][64] = {};
-	int64_t m_PrismBindRefresh = 0;
-	float m_aPrismInputFade[5] = {};
 	float m_Width, m_Height;
 
 	int m_HudQuadContainerIndex;
@@ -108,6 +104,10 @@ class CHud : public CComponent
 	void RenderSpectatorHud();
 	void RenderWarmupTimer();
 	void RenderLocalTime(float x);
+	void RenderPrismModules();
+	char m_aaPrismInputLabels[5][64] = {};
+	int64_t m_PrismBindRefresh = 0;
+	float m_aPrismInputFade[5] = {};
 
 	static constexpr float MOVEMENT_INFORMATION_LINE_HEIGHT = 8.0f;
 

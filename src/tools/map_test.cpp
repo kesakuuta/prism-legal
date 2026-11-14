@@ -7,7 +7,7 @@
 #include <engine/shared/uuid_manager.h>
 #include <engine/storage.h>
 
-static const char *TOOL_NAME = "map_test";
+static constexpr const char *const TOOL_NAME = "map_test";
 
 static int TestMap(const char *pMapPath, bool CalcHashes, IStorage *pStorage)
 {
@@ -53,17 +53,20 @@ static int TestMap(const char *pMapPath, bool CalcHashes, IStorage *pStorage)
 		}
 	}
 
+	bool Success = true;
 	for(int Index = 0; Index < pMap->NumData(); Index++)
 	{
 		log_info(TOOL_NAME, "Data %d:", Index);
 
+		// The data must be loaded first, as the size is only final after the data has been processed.
+		const void *pData = pMap->GetData(Index);
 		const int Size = pMap->GetDataSize(Index);
 		log_info(TOOL_NAME, "  Size: %d bytes", Size);
 
-		const void *pData = pMap->GetData(Index);
 		if(pData == nullptr)
 		{
-			log_info(TOOL_NAME, "  Data erroneous");
+			log_error(TOOL_NAME, "  Data erroneous");
+			Success = false;
 		}
 		else if(CalcHashes)
 		{
@@ -76,6 +79,11 @@ static int TestMap(const char *pMapPath, bool CalcHashes, IStorage *pStorage)
 	}
 
 	pMap->Unload();
+	if(!Success)
+	{
+		log_error(TOOL_NAME, "Tested map '%s' has errors", pMapPath);
+		return -1;
+	}
 	log_info(TOOL_NAME, "Tested map '%s' successfully", pMapPath);
 	return 0;
 }
@@ -83,7 +91,9 @@ static int TestMap(const char *pMapPath, bool CalcHashes, IStorage *pStorage)
 int main(int argc, const char **argv)
 {
 	const CCmdlineFix CmdlineFix(&argc, &argv);
-	log_set_global_logger_default();
+	ILogger *pDefaultLogger = log_logger_default().release();
+	pDefaultLogger->SetFilter(CLogFilter{LEVEL_DEBUG});
+	log_set_global_logger(pDefaultLogger);
 
 	const char *pMapPath;
 	bool CalcHashes;
@@ -99,7 +109,7 @@ int main(int argc, const char **argv)
 	}
 	else
 	{
-		log_error(TOOL_NAME, "Usage: %s [--calc-hashes] <map>", TOOL_NAME);
+		log_error(TOOL_NAME, "Usage: %s [--calc-hashes] <map>", argc > 0 ? argv[0] : TOOL_NAME);
 		return -1;
 	}
 

@@ -9,6 +9,7 @@
 #include <engine/shared/config.h>
 #include <engine/shared/protocol.h>
 
+#include <game/mapitems.h>
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/gamemodes/ddnet.h>
@@ -240,6 +241,13 @@ bool CSaveTee::Load(CCharacter *pChr, std::optional<int> Team)
 	else
 	{
 		pChr->m_Core.SetHookedPlayer(m_HookedPlayer);
+	}
+	// A hook attached to the ground requires a hookable tile at its position.
+	if(pChr->m_Core.m_HookState == HOOK_GRABBED && pChr->m_Core.HookedPlayer() == -1 &&
+		pChr->Collision()->GetCollisionAt(pChr->m_Core.m_HookPos.x, pChr->m_Core.m_HookPos.y) != TILE_SOLID)
+	{
+		pChr->m_Core.m_HookState = HOOK_RETRACTED;
+		pChr->m_Core.m_HookPos = pChr->m_Core.m_Pos;
 	}
 	pChr->m_Core.m_NewHook = m_NewHook;
 	pChr->m_SavedInput.m_Direction = m_InputDirection;
@@ -564,11 +572,12 @@ ESaveResult CSaveTeam::Save(CGameContext *pGameServer, int Team, bool Dry, bool 
 		return ESaveResult::TEAM_0_MODE;
 	}
 
-	m_MembersCount = pTeams->TeamSize(Team);
-	if(m_MembersCount <= 0)
+	const int MembersCount = pTeams->TeamSize(Team);
+	if(MembersCount <= 0)
 	{
 		return ESaveResult::TEAM_NOT_FOUND;
 	}
+	m_MembersCount = MembersCount;
 
 	m_TeamState = pTeams->GetTeamState(Team);
 
@@ -581,7 +590,7 @@ ESaveResult CSaveTeam::Save(CGameContext *pGameServer, int Team, bool Dry, bool 
 	m_TeamLocked = pTeams->TeamLocked(Team);
 	m_Practice = pTeams->IsPractice(Team);
 
-	m_pSavedTees = new CSaveTee[m_MembersCount];
+	m_pSavedTees = new CSaveTee[MembersCount];
 	int aPlayerCids[MAX_CLIENTS];
 	int j = 0;
 	CCharacter *p = (CCharacter *)pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_CHARACTER);
@@ -601,11 +610,12 @@ ESaveResult CSaveTeam::Save(CGameContext *pGameServer, int Team, bool Dry, bool 
 	if(m_MembersCount != j && !Force)
 		return ESaveResult::CHAR_NOT_FOUND;
 
-	if(pGameServer->Collision()->m_HighestSwitchNumber)
+	const int HighestSwitchNumber = pGameServer->Collision()->m_HighestSwitchNumber;
+	if(HighestSwitchNumber > 0)
 	{
-		m_pSwitchers = new SSimpleSwitchers[pGameServer->Collision()->m_HighestSwitchNumber + 1];
+		m_pSwitchers = new SSimpleSwitchers[HighestSwitchNumber + 1];
 
-		for(int i = 1; i < pGameServer->Collision()->m_HighestSwitchNumber + 1; i++)
+		for(int i = 1; i < HighestSwitchNumber + 1; i++)
 		{
 			m_pSwitchers[i].m_Status = pGameServer->Switchers()[i].m_aStatus[Team];
 			if(pGameServer->Switchers()[i].m_aEndTick[Team])
@@ -629,7 +639,7 @@ bool CSaveTeam::HandleSaveError(ESaveResult Result, int ClientId, CGameContext *
 	case ESaveResult::SUCCESS:
 		return false;
 	case ESaveResult::TEAM_FLOCK:
-		pGameContext->SendChatTarget(ClientId, "You have to be in a team (from 1-63)");
+		pGameContext->SendChatTarget(ClientId, "You have to be in a team (from 1-127)");
 		break;
 	case ESaveResult::TEAM_NOT_FOUND:
 		pGameContext->SendChatTarget(ClientId, "Could not find your Team");

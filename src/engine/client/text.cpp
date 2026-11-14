@@ -18,7 +18,6 @@
 #include FT_FREETYPE_H
 
 #include <chrono>
-#include <cmath>
 #include <cstddef>
 #include <limits>
 #include <tuple>
@@ -641,6 +640,14 @@ public:
 		return true;
 	}
 
+	bool SetPrismFacesByName(const char *pBody, const char *pBodyBold, const char *pHeading)
+	{
+		m_PrismBodyFace = GetFaceByName(pBody);
+		m_PrismBodyBoldFace = GetFaceByName(pBodyBold);
+		m_PrismHeadingFace = GetFaceByName(pHeading);
+		return m_PrismBodyFace && m_PrismBodyBoldFace && m_PrismHeadingFace;
+	}
+
 	bool SetIconFaceByName(const char *pFamilyName)
 	{
 		m_IconFace = GetFaceByName(pFamilyName);
@@ -683,14 +690,6 @@ public:
 			}
 		}
 		return true;
-	}
-
-	bool SetPrismFacesByName(const char *pBody, const char *pBodyBold, const char *pHeading)
-	{
-		m_PrismBodyFace = GetFaceByName(pBody);
-		m_PrismBodyBoldFace = GetFaceByName(pBodyBold);
-		m_PrismHeadingFace = GetFaceByName(pHeading);
-		return m_PrismBodyFace && m_PrismBodyBoldFace && m_PrismHeadingFace;
 	}
 
 	void SetFontPreset(EFontPreset FontPreset)
@@ -986,7 +985,6 @@ class CTextRender : public IEngineTextRender
 	std::vector<SFontLanguageVariant> m_vVariants;
 
 	unsigned m_RenderFlags;
-	float m_TextScaleX = 1.0f;
 
 	ColorRGBA m_Color;
 	ColorRGBA m_OutlineColor;
@@ -1063,25 +1061,25 @@ class CTextRender : public IEngineTextRender
 
 	bool LoadFontCollection(const char *pFontName, const FT_Byte *pFontData, FT_Long FontDataSize)
 	{
-		FT_Face FtFace;
-		FT_Error CollectionLoadError = FT_New_Memory_Face(m_FTLibrary, pFontData, FontDataSize, -1, &FtFace);
+		FT_Face FtFaceCollection;
+		FT_Error CollectionLoadError = FT_New_Memory_Face(m_FTLibrary, pFontData, FontDataSize, -1, &FtFaceCollection);
 		if(CollectionLoadError)
 		{
 			log_error("textrender", "Failed to load font file '%s': %s", pFontName, FT_Error_String(CollectionLoadError));
 			return false;
 		}
 
-		const FT_Long NumFaces = FtFace->num_faces;
-		FT_Done_Face(FtFace);
+		const FT_Long NumFaces = FtFaceCollection->num_faces;
+		FT_Done_Face(FtFaceCollection);
 
 		bool LoadedAny = false;
 		for(FT_Long FaceIndex = 0; FaceIndex < NumFaces; ++FaceIndex)
 		{
+			FT_Face FtFace;
 			FT_Error FaceLoadError = FT_New_Memory_Face(m_FTLibrary, pFontData, FontDataSize, FaceIndex, &FtFace);
 			if(FaceLoadError)
 			{
 				log_error("textrender", "Failed to load font face %ld from font file '%s': %s", FaceIndex, pFontName, FT_Error_String(FaceLoadError));
-				FT_Done_Face(FtFace);
 				continue;
 			}
 
@@ -1334,6 +1332,18 @@ public:
 			Success = false;
 		}
 
+		// extract prism font families
+		const json_value &PrismBody = (*pJsonData)["prism body"];
+		const json_value &PrismBodyBold = (*pJsonData)["prism body bold"];
+		const json_value &PrismHeading = (*pJsonData)["prism heading"];
+		if(PrismBody.type == json_string && PrismBodyBold.type == json_string && PrismHeading.type == json_string)
+		{
+			if(!m_pGlyphMap->SetPrismFacesByName(PrismBody.u.string.ptr, PrismBodyBold.u.string.ptr, PrismHeading.u.string.ptr))
+			{
+				log_warn("textrender", "Prism font faces unavailable; using default font fallback");
+			}
+		}
+
 		// extract icon font family name
 		const json_value &IconFace = (*pJsonData)["icon"];
 		if(IconFace.type == json_string)
@@ -1349,17 +1359,6 @@ public:
 			Success = false;
 		}
 
-		// Optional to retain compatibility with user-provided DDNet font indices.
-		// Missing glyphs still use the default/language/fallback face chain.
-		const json_value &PrismBody = (*pJsonData)["prism body"];
-		const json_value &PrismBodyBold = (*pJsonData)["prism body bold"];
-		const json_value &PrismHeading = (*pJsonData)["prism heading"];
-		if(PrismBody.type == json_string && PrismBodyBold.type == json_string && PrismHeading.type == json_string)
-		{
-			if(!m_pGlyphMap->SetPrismFacesByName(PrismBody.u.string.ptr, PrismBodyBold.u.string.ptr, PrismHeading.u.string.ptr))
-				log_warn("textrender", "Prism font faces unavailable; using default font fallback");
-		}
-
 		json_value_free(pJsonData);
 		return Success;
 	}
@@ -1367,16 +1366,6 @@ public:
 	void SetFontPreset(EFontPreset FontPreset) override
 	{
 		m_pGlyphMap->SetFontPreset(FontPreset);
-	}
-
-	void SetTextScaleX(float ScaleX) override
-	{
-		m_TextScaleX = std::isfinite(ScaleX) ? std::clamp(ScaleX, 1.0f, 1.4f) : 1.0f;
-	}
-
-	float GetTextScaleX() const override
-	{
-		return m_TextScaleX;
 	}
 
 	void SetFontLanguageVariant(const char *pLanguageFile) override
@@ -1615,27 +1604,36 @@ public:
 		int SelectionStartChar = -1;
 		int SelectionEndChar = -1;
 
-		const auto &&CheckInsideChar = [&](bool CheckOuter, vec2 CursorPos, float LastCharX, float LastCharWidth, float CharX, float CharWidth, float CharY) -> bool {
-			return (LastCharX - LastCharWidth / 2 <= CursorPos.x &&
-				       CharX + CharWidth / 2 > CursorPos.x &&
-				       CursorPos.y >= CharY - pCursor->m_AlignedFontSize &&
-				       CursorPos.y < CharY + pCursor->m_AlignedLineSpacing) ||
+		const auto &&CheckChar = [&](vec2 CursorPos, float CharX, float CharWidth, float CharY) -> bool {
+			float AlignedCharTop = CharY - pCursor->m_AlignedFontSize;
+			float AlignedCharBottom = CharY + pCursor->m_AlignedLineSpacing;
+			if((RenderFlags & TEXT_RENDER_FLAG_NO_PIXEL_ALIGNMENT) == 0)
+			{
+				AlignedCharTop = round_to_int(AlignedCharTop * FakeToScreen.y) / FakeToScreen.y;
+				AlignedCharBottom = round_to_int(AlignedCharBottom * FakeToScreen.y) / FakeToScreen.y;
+			}
+			return (CharX + CharWidth / 2.0f > CursorPos.x &&
+				       CursorPos.y >= AlignedCharTop &&
+				       CursorPos.y < AlignedCharBottom) ||
+			       (CursorPos.x >= pCursor->m_X &&
+				       CursorPos.y < AlignedCharTop);
+		};
+		const auto &&CheckInsideChar = [&](bool CheckOuter, vec2 CursorPos, float CharX, float CharWidth, float CharY) -> bool {
+			return CheckChar(CursorPos, CharX, CharWidth, CharY) ||
 			       (CheckOuter &&
 				       CursorPos.y <= CharY - pCursor->m_AlignedFontSize);
 		};
-		const auto &&CheckSelectionStart = [&](bool CheckOuter, vec2 CursorPos, int &SelectionChar, bool &SelectionUsedCase, float LastCharX, float LastCharWidth, float CharX, float CharWidth, float CharY) {
+		const auto &&CheckSelectionStart = [&](bool CheckOuter, vec2 CursorPos, int &SelectionChar, bool &SelectionUsedCase, float CharX, float CharWidth, float CharY) {
 			if(!SelectionStarted && !SelectionUsedCase &&
-				CheckInsideChar(CheckOuter, CursorPos, LastCharX, LastCharWidth, CharX, CharWidth, CharY))
+				CheckInsideChar(CheckOuter, CursorPos, CharX, CharWidth, CharY))
 			{
 				SelectionChar = pCursor->m_GlyphCount;
-				SelectionStarted = !SelectionStarted;
+				SelectionStarted = true;
 				SelectionUsedCase = true;
 			}
 		};
 		const auto &&CheckOutsideChar = [&](bool CheckOuter, vec2 CursorPos, float CharX, float CharWidth, float CharY) -> bool {
-			return (CharX + CharWidth / 2 > CursorPos.x &&
-				       CursorPos.y >= CharY - pCursor->m_AlignedFontSize &&
-				       CursorPos.y < CharY + pCursor->m_AlignedLineSpacing) ||
+			return CheckChar(CursorPos, CharX, CharWidth, CharY) ||
 			       (CheckOuter &&
 				       CursorPos.y >= CharY + pCursor->m_AlignedLineSpacing);
 		};
@@ -1644,7 +1642,7 @@ public:
 				CheckOutsideChar(CheckOuter, CursorPos, CharX, CharWidth, CharY))
 			{
 				SelectionChar = pCursor->m_GlyphCount;
-				SelectionStarted = !SelectionStarted;
+				SelectionStarted = false;
 				SelectionUsedCase = true;
 			}
 		};
@@ -1755,6 +1753,9 @@ public:
 					{
 						if(StartNewLine())
 						{
+							// Count the newline as a decoded character, so that m_GlyphCount stays
+							// in sync with the decoded character offsets used for text selection
+							pCursor->m_GlyphCount++;
 							pLastGlyph = nullptr;
 							continue;
 						}
@@ -1777,13 +1778,13 @@ public:
 					const float Scale = 1.0f / pGlyph->m_FontSize;
 
 					const bool ApplyBearingX = !(((RenderFlags & TEXT_RENDER_FLAG_NO_X_BEARING) != 0) || (pCursor->m_GlyphCount == 0 && (RenderFlags & TEXT_RENDER_FLAG_NO_FIRST_CHARACTER_X_BEARING) != 0));
-					const float Advance = (((RenderFlags & TEXT_RENDER_FLAG_ONLY_ADVANCE_WIDTH) != 0) ? (pGlyph->m_Width) : (pGlyph->m_AdvanceX + ((!ApplyBearingX) ? (-pGlyph->m_OffsetX) : 0.f))) * Scale * pCursor->m_AlignedFontSize * m_TextScaleX;
+					const float Advance = (((RenderFlags & TEXT_RENDER_FLAG_ONLY_ADVANCE_WIDTH) != 0) ? (pGlyph->m_Width) : (pGlyph->m_AdvanceX + ((!ApplyBearingX) ? (-pGlyph->m_OffsetX) : 0.f))) * Scale * pCursor->m_AlignedFontSize;
 
-					const float OutLineRealDiff = (pGlyph->m_Width - pGlyph->m_CharWidth) * Scale * pCursor->m_AlignedFontSize * m_TextScaleX;
+					const float OutLineRealDiff = (pGlyph->m_Width - pGlyph->m_CharWidth) * Scale * pCursor->m_AlignedFontSize;
 
 					float CharKerning = 0.0f;
 					if((RenderFlags & TEXT_RENDER_FLAG_KERNING) != 0)
-						CharKerning = m_pGlyphMap->Kerning(pLastGlyph, pGlyph).x * Scale * pCursor->m_AlignedFontSize * m_TextScaleX;
+						CharKerning = m_pGlyphMap->Kerning(pLastGlyph, pGlyph).x * Scale * pCursor->m_AlignedFontSize;
 					pLastGlyph = pGlyph;
 
 					if((pCursor->m_Flags & TEXTFLAG_ELLIPSIS_AT_END) != 0 && pCursor->m_LineWidth > 0.0f && pCurrent < pBatchEnd && pCurrent != pEllipsis)
@@ -1801,11 +1802,11 @@ public:
 						}
 						if(pEllipsisGlyph != nullptr)
 						{
-							float AdvanceEllipsis = (((RenderFlags & TEXT_RENDER_FLAG_ONLY_ADVANCE_WIDTH) != 0) ? (pEllipsisGlyph->m_Width) : (pEllipsisGlyph->m_AdvanceX + ((!ApplyBearingX) ? (-pEllipsisGlyph->m_OffsetX) : 0.f))) * Scale * pCursor->m_AlignedFontSize * m_TextScaleX;
+							float AdvanceEllipsis = (((RenderFlags & TEXT_RENDER_FLAG_ONLY_ADVANCE_WIDTH) != 0) ? (pEllipsisGlyph->m_Width) : (pEllipsisGlyph->m_AdvanceX + ((!ApplyBearingX) ? (-pEllipsisGlyph->m_OffsetX) : 0.f))) * Scale * pCursor->m_AlignedFontSize;
 							float CharKerningEllipsis = 0.0f;
 							if((RenderFlags & TEXT_RENDER_FLAG_KERNING) != 0)
 							{
-								CharKerningEllipsis = m_pGlyphMap->Kerning(pGlyph, pEllipsisGlyph).x * Scale * pCursor->m_AlignedFontSize * m_TextScaleX;
+								CharKerningEllipsis = m_pGlyphMap->Kerning(pGlyph, pEllipsisGlyph).x * Scale * pCursor->m_AlignedFontSize;
 							}
 							if(DrawX + CharKerning + Advance + CharKerningEllipsis + AdvanceEllipsis - pCursor->m_StartX > pCursor->m_LineWidth)
 							{
@@ -1837,8 +1838,8 @@ public:
 						break;
 					}
 
-					float BearingX = (!ApplyBearingX ? 0.f : pGlyph->m_OffsetX) * Scale * pCursor->m_AlignedFontSize * m_TextScaleX;
-					float CharWidth = pGlyph->m_Width * Scale * pCursor->m_AlignedFontSize * m_TextScaleX;
+					float BearingX = (!ApplyBearingX ? 0.f : pGlyph->m_OffsetX) * Scale * pCursor->m_AlignedFontSize;
+					float CharWidth = pGlyph->m_Width * Scale * pCursor->m_AlignedFontSize;
 
 					float BearingY = (((RenderFlags & TEXT_RENDER_FLAG_NO_Y_BEARING) != 0) ? 0.f : (pGlyph->m_OffsetY * Scale * pCursor->m_AlignedFontSize));
 					float CharHeight = pGlyph->m_Height * Scale * pCursor->m_AlignedFontSize;
@@ -1926,7 +1927,7 @@ public:
 
 					if(pCursor->m_CursorMode == TEXT_CURSOR_CURSOR_MODE_CALCULATE)
 					{
-						if(pCursor->m_CursorCharacter == -1 && CheckInsideChar(pCursor->m_GlyphCount == 0, pCursor->m_ReleaseMouse, pCursor->m_GlyphCount == 0 ? std::numeric_limits<float>::lowest() : LastCharX, LastCharWidth, CharX, CharWidth, TmpY))
+						if(pCursor->m_CursorCharacter == -1 && CheckInsideChar(pCursor->m_GlyphCount == 0, pCursor->m_ReleaseMouse, CharX, CharWidth, TmpY))
 						{
 							pCursor->m_CursorCharacter = pCursor->m_GlyphCount;
 						}
@@ -1934,15 +1935,9 @@ public:
 
 					if(pCursor->m_CalculateSelectionMode == TEXT_CURSOR_SELECTION_MODE_CALCULATE)
 					{
-						if(pCursor->m_GlyphCount == 0)
-						{
-							CheckSelectionStart(true, pCursor->m_PressMouse, SelectionStartChar, SelectionUsedPress, std::numeric_limits<float>::lowest(), 0, CharX, CharWidth, TmpY);
-							CheckSelectionStart(true, pCursor->m_ReleaseMouse, SelectionEndChar, SelectionUsedRelease, std::numeric_limits<float>::lowest(), 0, CharX, CharWidth, TmpY);
-						}
-
 						// if selection didn't start and the mouse pos is at least on 50% of the right side of the character start
-						CheckSelectionStart(false, pCursor->m_PressMouse, SelectionStartChar, SelectionUsedPress, LastCharX, LastCharWidth, CharX, CharWidth, TmpY);
-						CheckSelectionStart(false, pCursor->m_ReleaseMouse, SelectionEndChar, SelectionUsedRelease, LastCharX, LastCharWidth, CharX, CharWidth, TmpY);
+						CheckSelectionStart(pCursor->m_GlyphCount == 0, pCursor->m_PressMouse, SelectionStartChar, SelectionUsedPress, CharX, CharWidth, TmpY);
+						CheckSelectionStart(pCursor->m_GlyphCount == 0, pCursor->m_ReleaseMouse, SelectionEndChar, SelectionUsedRelease, CharX, CharWidth, TmpY);
 						CheckSelectionEnd(false, pCursor->m_ReleaseMouse, SelectionEndChar, SelectionUsedRelease, CharX, CharWidth, TmpY);
 						CheckSelectionEnd(false, pCursor->m_PressMouse, SelectionStartChar, SelectionUsedPress, CharX, CharWidth, TmpY);
 					}

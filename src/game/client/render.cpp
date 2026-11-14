@@ -1,4 +1,3 @@
-#include <algorithm>
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "render.h"
@@ -263,6 +262,14 @@ void CRenderTools::RenderTee(const CAnimState *pAnim, const CTeeRenderInfo *pInf
 
 	Graphics()->SetColor(1.f, 1.f, 1.f, 1.f);
 	Graphics()->QuadsSetRotation(0);
+}
+
+void CRenderTools::RenderIdleTeeAtCenter(const CTeeRenderInfo *pInfo, vec2 Center, int Emote, vec2 Dir, float Alpha) const
+{
+	const CAnimState *pIdleState = CAnimState::GetIdle();
+	vec2 OffsetToMid;
+	GetRenderTeeOffsetToRenderedTee(pIdleState, pInfo, OffsetToMid);
+	RenderTee(pIdleState, pInfo, Emote, Dir, Center + vec2(0.0f, OffsetToMid.y), Alpha);
 }
 
 void CRenderTools::RenderTee7(const CAnimState *pAnim, const CTeeRenderInfo *pInfo, int Emote, vec2 Dir, vec2 Pos, float Alpha) const
@@ -586,71 +593,77 @@ void CRenderTools::RenderTee6(const CAnimState *pAnim, const CTeeRenderInfo *pIn
 	}
 }
 
+ColorRGBA CRenderTools::GetPingTextColor(int Latency)
+{
+	return color_cast<ColorRGBA>(ColorHSLA((300.0f - std::clamp(Latency, 0, 300)) / 1000.0f, 1.0f, 0.5f));
+}
 
-// Prism only consumes interpolated render inputs; no gameplay state is accessed.
+void CRenderTools::RenderChineseHat(const CAnimState *pAnim, const CTeeRenderInfo *pInfo, vec2 Dir, vec2 Pos, float Alpha) const
+{
+	if(!g_Config.m_PrismHatEnabled || Alpha <= 0.0f)
+		return;
+
+	float AnimScale, BaseSize;
+	GetRenderTeeAnimScaleAndBaseSize(pInfo, AnimScale, BaseSize);
+	const vec2 BodyPos = Pos + vec2(pAnim->GetBody()->m_X, pAnim->GetBody()->m_Y) * AnimScale;
+	const float BodyAngle = pAnim->GetBody()->m_Angle;
+
+	ChineseHatConfig Config;
+	Config.m_Enabled = true;
+	Config.m_Mode = g_Config.m_PrismHatMode;
+	Config.m_Color = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_PrismHatColor));
+	Config.m_RibColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_PrismHatRibColor));
+	Config.m_Alpha = (std::clamp(g_Config.m_PrismHatAlpha, 10, 100) / 100.0f) * Alpha;
+	Config.m_RibAlpha = (std::clamp(g_Config.m_PrismHatRibAlpha, 10, 100) / 100.0f) * Alpha;
+	Config.m_Speed = std::clamp(g_Config.m_PrismHatSpeed, 10, 500) / 100.0f;
+	Config.m_Scale = std::clamp(g_Config.m_PrismHatScale, 50, 200) / 100.0f;
+	Config.m_OffsetY = static_cast<float>(g_Config.m_PrismHatOffsetY);
+	Config.m_Tilt = g_Config.m_PrismHatTilt != 0;
+
+	static float s_HatAnimTime = 0.0f;
+	s_HatAnimTime += 1.0f / 60.0f;
+
+	ChineseHatMesh Mesh;
+	generate_chinese_hat_mesh(
+		BodyPos.x, BodyPos.y, BodyAngle,
+		Dir.x, Dir.y, BaseSize,
+		s_HatAnimTime,
+		&Config, &Mesh);
+
+	// Render triangular translucent facets
+	Graphics()->TextureClear();
+	Graphics()->QuadsBegin();
+	for(size_t i = 0; i < Mesh.m_FacetCount; ++i)
+	{
+		const auto &Facet = Mesh.m_aFacets[i];
+		Graphics()->SetColor(Facet.m_Color.r, Facet.m_Color.g, Facet.m_Color.b, Facet.m_Color.a);
+		IGraphics::CFreeformItem Tri(
+			Facet.m_Apex.x, Facet.m_Apex.y,
+			Facet.m_Left.x, Facet.m_Left.y,
+			Facet.m_Right.x, Facet.m_Right.y,
+			Facet.m_Apex.x, Facet.m_Apex.y);
+		Graphics()->QuadsDrawFreeform(&Tri, 1);
+	}
+	Graphics()->QuadsEnd();
+
+	// Render structural rib lines fanning from apex to rim
+	Graphics()->LinesBegin();
+	for(size_t i = 0; i < Mesh.m_LineCount; ++i)
+	{
+		const auto &Line = Mesh.m_aLines[i];
+		Graphics()->SetColor(Line.m_Color.r, Line.m_Color.g, Line.m_Color.b, Line.m_Color.a);
+		IGraphics::CLineItem LineItem(Line.m_From.x, Line.m_From.y, Line.m_To.x, Line.m_To.y);
+		Graphics()->LinesDraw(&LineItem, 1);
+	}
+	Graphics()->LinesEnd();
+}
+
 void CRenderTools::RenderPrismTee(const CAnimState *pAnim, const CTeeRenderInfo *pInfo, vec2 Dir, vec2 Pos, float Alpha, bool Local) const
 {
- if(!g_Config.m_PrismEnabled || Alpha <= 0.0f) return;
- const bool Outline = Local ? g_Config.m_PrismLocalOutline : g_Config.m_PrismOtherOutline;
- const bool Glow = Local ? g_Config.m_PrismLocalGlow : g_Config.m_PrismOtherGlow;
- if(!Outline && !Glow) return;
- const float Width = std::clamp(Local ? g_Config.m_PrismLocalOutlineWidth : g_Config.m_PrismOtherOutlineWidth, 1, 8);
- const float Intensity = std::clamp(Local ? g_Config.m_PrismLocalGlowIntensity : g_Config.m_PrismOtherGlowIntensity, 0, 100) / 100.0f;
- const auto OutlineColor = color_cast<ColorRGBA>(ColorHSLA(Local ? g_Config.m_PrismLocalOutlineColor : g_Config.m_PrismOtherOutlineColor));
- const auto GlowColor = color_cast<ColorRGBA>(ColorHSLA(Local ? g_Config.m_PrismLocalGlowColor : g_Config.m_PrismOtherGlowColor));
- const bool Sixup = pInfo->m_aSixup[g_Config.m_ClDummy].PartTexture(protocol7::SKINPART_BODY).IsValid();
- float AnimScale, BaseSize;
- GetRenderTeeAnimScaleAndBaseSize(pInfo, AnimScale, BaseSize);
- if(Sixup) { AnimScale = pInfo->m_Size / 64.0f; BaseSize = pInfo->m_Size; }
- auto Layer = [&](ColorRGBA Color, float Expansion) {
-  auto Part = [&](const CAnimKeyframe *pFrame, bool Body) {
-   const vec2 Position = Pos + vec2(pFrame->m_X, pFrame->m_Y) * AnimScale;
-   const auto Texture = Sixup ? pInfo->m_aSixup[g_Config.m_ClDummy].m_aPrismMasks[Body ? protocol7::SKINPART_BODY : protocol7::SKINPART_FEET] :
-    (Body ? pInfo->m_OriginalRenderSkin.m_PrismBodyMask : pInfo->m_OriginalRenderSkin.m_PrismFeetMask);
-   if(!Texture.IsValid()) return;
-   Graphics()->TextureSet(Texture);
-   if(Sixup)
-   {
-    Graphics()->QuadsBegin();
-    Graphics()->QuadsSetRotation(pFrame->m_Angle * pi * 2);
-    Graphics()->SetColor(Color.WithMultipliedAlpha(Alpha));
-    Graphics()->SelectSprite7(Body ? client_data7::SPRITE_TEE_BODY_OUTLINE : client_data7::SPRITE_TEE_FOOT_OUTLINE);
-    float Size = Body ? BaseSize : BaseSize / 2.1f;
-    IGraphics::CQuadItem Item(Position.x, Position.y, Size + 2 * Expansion, Size + 2 * Expansion);
-    Graphics()->QuadsDraw(&Item, 1);
-    Graphics()->QuadsEnd();
-   }
-   else
-   {
-    Graphics()->QuadsSetRotation(pFrame->m_Angle * pi * 2);
-    Graphics()->SetColor(Color.WithMultipliedAlpha(Alpha));
-    float Scale;
-    GetRenderTeeBodyScale(BaseSize, Scale);
-    const int Offset = Body ? 1 : (Dir.x < 0 && pInfo->m_FeetFlipped ? 9 : 7);
-    const float ScaleX = Body ? Scale : BaseSize / 64.0f;
-    const float ScaleY = Body ? Scale : BaseSize / 64.0f;
-    Graphics()->RenderQuadContainerAsSprite(m_TeeQuadContainerIndex, Offset, Position.x, Position.y,
-     ScaleX + Expansion / 32.0f, ScaleY + Expansion / (Body ? 32.0f : 16.0f));
-   }
-  };
-  Part(pAnim->GetBackFoot(), false);
-  Part(pAnim->GetBody(), true);
-  Part(pAnim->GetFrontFoot(), false);
- };
- // Four low-opacity feather layers approximate a halo without framebuffer blur.
- // The outermost layer is faint; the inner falloff is deliberately restrained.
- if(Glow && Intensity > 0.0f)
- {
-  constexpr float aRadius[] = {13.0f, 9.5f, 6.0f, 3.0f};
-  constexpr float aAlpha[] = {0.028f, 0.048f, 0.072f, 0.11f};
-  for(int i = 0; i < 4; ++i)
-   Layer(GlowColor.WithAlpha(Intensity * aAlpha[i]), aRadius[i] * AnimScale);
- }
- if(Outline)
- {
-  Layer(OutlineColor.WithAlpha(0.12f), (Width + 2.5f) * AnimScale);
-  Layer(OutlineColor.WithAlpha(0.75f), Width * AnimScale);
- }
- Graphics()->QuadsSetRotation(0);
- Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+	if(!g_Config.m_PrismEnabled || Alpha <= 0.0f)
+		return;
+	const bool Outline = Local ? g_Config.m_PrismLocalOutline : g_Config.m_PrismOtherOutline;
+	const bool Glow = Local ? g_Config.m_PrismLocalGlow : g_Config.m_PrismOtherGlow;
+	if(!Outline && !Glow)
+		return;
 }

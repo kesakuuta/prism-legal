@@ -1,16 +1,30 @@
+#include "components/tclient/bg_draw.h"
+#include "components/tclient/bindchat.h"
+#include "components/tclient/bindwheel.h"
+#include "components/tclient/custom_communities.h"
+#include "components/tclient/mod.h"
+#include "components/tclient/moving_tiles.h"
+#include "components/tclient/mumble.h"
+#include "components/tclient/outlines.h"
+#include "components/tclient/pet.h"
+#include "components/tclient/player_indicator.h"
+#include "components/tclient/rainbow.h"
+#include "components/tclient/skinprofiles.h"
+#include "components/tclient/statusbar.h"
+#include "components/tclient/tclient.h"
+#include "components/tclient/trails.h"
+#include "components/tclient/translate.h"
+#include "components/tclient/warlist.h"
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #ifndef GAME_CLIENT_GAMECLIENT_H
 #define GAME_CLIENT_GAMECLIENT_H
 
 #include "render.h"
-#include "prism_qol.h"
-#include "prism_assist.h"
 
 #include <base/color.h>
 #include <base/types.h>
 #include <base/vmath.h>
-#include <array>
 
 #include <engine/client.h>
 #include <engine/client/enums.h>
@@ -69,7 +83,6 @@
 #include "components/sounds.h"
 #include "components/spectator.h"
 #include "components/statboard.h"
-#include "components/tooltips.h"
 #include "components/touch_controls.h"
 #include "components/voting.h"
 
@@ -165,6 +178,26 @@ public:
 	CKeyBinder m_KeyBinder;
 	CParticles m_Particles;
 	CMenus m_Menus;
+	// TClient Components
+	CSkinProfiles m_SkinProfiles;
+	CStatusBar m_StatusBar;
+	CBindChat m_BindChat;
+	CBindWheel m_BindWheel;
+	CBgDraw m_BgDraw;
+	CTClient m_TClient;
+	CTrails m_Trails;
+	CTranslate m_Translate;
+	CPet m_Pet;
+	CPlayerIndicator m_PlayerIndicator;
+	COutlines m_Outlines;
+	CMumble m_Mumble;
+	CRainbow m_Rainbow;
+	CWarList m_WarList;
+	CMod m_Mod;
+	CCustomCommunities m_CustomCommunities;
+	CMovingTiles m_MovingTilesBackground = CMovingTiles{false};
+	CMovingTiles m_MovingTilesForeground = CMovingTiles{true};
+
 	CSkins m_Skins;
 	CSkins7 m_Skins7;
 	CCountryFlags m_CountryFlags;
@@ -173,39 +206,6 @@ public:
 	CImportantAlert m_ImportantAlert;
 	CDebugHud m_DebugHud;
 	CControls m_Controls;
-	// Phase 3: only client-side input composition, never prediction/physics/protocol.
-	PrismQol::CMacroEngine m_PrismMacros;
-	PrismAssist::CPredictor m_PrismPredictor;
-	std::array<PrismAssist::STrajectory, PrismAssist::MAX_CANDIDATES> m_aPrismAssistPaths{};
-	int m_PrismAssistPathCount = 0;
-	int m_PrismAssistSelected = 0;
-	int m_PrismAvoidJumpCooldown = 0;
-	int m_PrismAvoidLastDirection = 0;
-	int m_PrismAvoidIntentDirection = 0;
-	int m_PrismAvoidIntentTicks = 0;
-	int m_PrismAvoidInferredDirection = 0;
-	int m_PrismAvoidRouteCandidate = -1;
-	int m_PrismAvoidEmergencyCandidate = -1;
-	bool m_PrismAvoidDeferred = false;
-	bool m_PrismAvoidHookOwned = false;
-	vec2 m_PrismAvoidHookPoint = vec2(0, 0);
-	int m_PrismAvoidHookCandidateCount = 0;
-	int m_PrismHookTargetId = -1;
-	bool m_PrismHookActive = false;
-	bool m_PrismHookDebugReady = false;
-	bool m_PrismManualHookHeld = false;
-	int m_PrismHookCandidateCount = 0;
-	vec2 m_PrismHookPredictedPos = vec2(0, 0);
-	vec2 m_PrismHookOutput = vec2(0, 0);
-	vec2 m_PrismHookLastManual = vec2(0, 0);
-	vec2 m_PrismHookDebugOrigin = vec2(0, 0);
-	vec2 m_PrismHookDebugDirection = vec2(1, 0);
-	void PrismComposeAssist(CNetObj_PlayerInput &Input, int ManualDirection, bool ManualJump, bool MacroDirectionOwned, bool ManualHook, bool MacroHookOwned);
-	void PrismRenderAssistDebug();
-	bool m_aPrismLastAssisted[NUM_DUMMIES] = {};
-	int m_PrismHammerCounter = 0;
-	void PrismEmergencyStop();
-	bool PrismInputAllowed();
 	CEffects m_Effects;
 	CScoreboard m_Scoreboard;
 	CStatboard m_Statboard;
@@ -231,9 +231,6 @@ public:
 
 	CRaceDemo m_RaceDemo;
 	CGhost m_Ghost;
-
-	CTooltips m_Tooltips;
-
 	CLocalServer m_LocalServer;
 
 private:
@@ -738,6 +735,8 @@ public:
 	int CurrentRaceTime() const;
 
 	bool IsTeamPlay() const;
+	int MinTeamSize() const;
+	int MaxTeamSize() const;
 	bool IsWorldPaused() const;
 	bool IsDemoPlaybackPaused() const;
 	float GetAnimationPlaybackSpeed() const;
@@ -778,8 +777,11 @@ public:
 	void LoadHudSkin(const char *pPath, bool AsDir = false);
 	void LoadExtrasSkin(const char *pPath, bool AsDir = false);
 
-	struct SClientGameSkin
+	class CGameSkin
 	{
+	public:
+		bool m_Loaded = false;
+
 		// health armor hud
 		IGraphics::CTextureHandle m_SpriteHealthFull;
 		IGraphics::CTextureHandle m_SpriteHealthEmpty;
@@ -833,6 +835,7 @@ public:
 
 		// pickups
 		IGraphics::CTextureHandle m_SpritePickupHealth;
+		IGraphics::CTextureHandle m_SpritePickupFreeze;
 		IGraphics::CTextureHandle m_SpritePickupArmor;
 		IGraphics::CTextureHandle m_SpritePickupArmorShotgun;
 		IGraphics::CTextureHandle m_SpritePickupArmorGrenade;
@@ -863,12 +866,12 @@ public:
 			return m_SpriteNinjaBarFullLeft.IsValid();
 		}
 	};
+	CGameSkin m_GameSkin;
 
-	SClientGameSkin m_GameSkin;
-	bool m_GameSkinLoaded = false;
-
-	struct SClientParticlesSkin
+	class CParticlesSkin
 	{
+	public:
+		bool m_Loaded = false;
 		IGraphics::CTextureHandle m_SpriteParticleSlice;
 		IGraphics::CTextureHandle m_SpriteParticleBall;
 		IGraphics::CTextureHandle m_aSpriteParticleSplat[3];
@@ -879,20 +882,20 @@ public:
 		IGraphics::CTextureHandle m_SpriteParticleHit;
 		IGraphics::CTextureHandle m_aSpriteParticles[10];
 	};
+	CParticlesSkin m_ParticlesSkin;
 
-	SClientParticlesSkin m_ParticlesSkin;
-	bool m_ParticlesSkinLoaded = false;
-
-	struct SClientEmoticonsSkin
+	class CEmoticonsSkin
 	{
+	public:
+		bool m_Loaded = false;
 		IGraphics::CTextureHandle m_aSpriteEmoticons[16];
 	};
+	CEmoticonsSkin m_EmoticonsSkin;
 
-	SClientEmoticonsSkin m_EmoticonsSkin;
-	bool m_EmoticonsSkinLoaded = false;
-
-	struct SClientHudSkin
+	class CHudSkin
 	{
+	public:
+		bool m_Loaded = false;
 		IGraphics::CTextureHandle m_SpriteHudAirjump;
 		IGraphics::CTextureHandle m_SpriteHudAirjumpEmpty;
 		IGraphics::CTextureHandle m_SpriteHudSolo;
@@ -925,21 +928,19 @@ public:
 		IGraphics::CTextureHandle m_SpriteHudDummyHammer;
 		IGraphics::CTextureHandle m_SpriteHudDummyCopy;
 	};
+	CHudSkin m_HudSkin;
 
-	SClientHudSkin m_HudSkin;
-	bool m_HudSkinLoaded = false;
-
-	struct SClientExtrasSkin
+	class CExtrasSkin
 	{
+	public:
+		bool m_Loaded = false;
 		IGraphics::CTextureHandle m_SpriteParticleSnowflake;
 		IGraphics::CTextureHandle m_SpriteParticleSparkle;
 		IGraphics::CTextureHandle m_SpritePulley;
 		IGraphics::CTextureHandle m_SpriteHectagon;
 		IGraphics::CTextureHandle m_aSpriteParticles[4];
 	};
-
-	SClientExtrasSkin m_ExtrasSkin;
-	bool m_ExtrasSkinLoaded = false;
+	CExtrasSkin m_ExtrasSkin;
 
 	const std::vector<CSnapEntities> &SnapEntities() { return m_vSnapEntities; }
 
@@ -1013,10 +1014,10 @@ private:
 	float m_LastFollowFactor;
 	bool m_LastDummyConnected;
 
+	bool InitMultiView(int Team);
 	void HandleMultiView();
 	bool IsMultiViewIdSet();
 	void CleanMultiViewIds();
-	bool InitMultiView(int Team);
 	float CalculateMultiViewMultiplier(vec2 TargetPos);
 	float CalculateMultiViewZoom(vec2 MinPos, vec2 MaxPos, float Vel);
 	float MapValue(float MaxValue, float MinValue, float MaxRange, float MinRange, float Value);

@@ -199,10 +199,6 @@ class ITextRender : public IInterface
 public:
 	virtual bool LoadFonts() = 0;
 	virtual void SetFontPreset(EFontPreset FontPreset) = 0;
-	// Applies to newly created/appended text, including width, wrapping and hit testing.
-	// Callers must restore 1.0f after drawing stretched headings.
-	virtual void SetTextScaleX(float ScaleX) = 0;
-	virtual float GetTextScaleX() const = 0;
 	virtual void SetFontLanguageVariant(const char *pLanguageFile) = 0;
 
 	virtual void SetRenderFlags(unsigned Flags) = 0;

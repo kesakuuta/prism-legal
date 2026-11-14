@@ -60,40 +60,29 @@ void CCollision::Init(class CLayers *pLayers)
 
 	if(m_pLayers->TeleLayer())
 	{
-		unsigned int Size = m_pLayers->Map()->GetDataSize(m_pLayers->TeleLayer()->m_Tele);
-		if(Size >= (size_t)m_Width * m_Height * sizeof(CTeleTile))
-			m_pTele = static_cast<CTeleTile *>(m_pLayers->Map()->GetData(m_pLayers->TeleLayer()->m_Tele));
+		m_pTele = static_cast<CTeleTile *>(m_pLayers->Map()->GetData(m_pLayers->TeleLayer()->m_Tele));
 	}
 
 	if(m_pLayers->SpeedupLayer())
 	{
-		unsigned int Size = m_pLayers->Map()->GetDataSize(m_pLayers->SpeedupLayer()->m_Speedup);
-		if(Size >= (size_t)m_Width * m_Height * sizeof(CSpeedupTile))
-			m_pSpeedup = static_cast<CSpeedupTile *>(m_pLayers->Map()->GetData(m_pLayers->SpeedupLayer()->m_Speedup));
+		m_pSpeedup = static_cast<CSpeedupTile *>(m_pLayers->Map()->GetData(m_pLayers->SpeedupLayer()->m_Speedup));
 	}
 
 	if(m_pLayers->SwitchLayer())
 	{
-		unsigned int Size = m_pLayers->Map()->GetDataSize(m_pLayers->SwitchLayer()->m_Switch);
-		if(Size >= (size_t)m_Width * m_Height * sizeof(CSwitchTile))
-			m_pSwitch = static_cast<CSwitchTile *>(m_pLayers->Map()->GetData(m_pLayers->SwitchLayer()->m_Switch));
-
+		m_pSwitch = static_cast<CSwitchTile *>(m_pLayers->Map()->GetData(m_pLayers->SwitchLayer()->m_Switch));
 		m_pDoor = new CDoorTile[m_Width * m_Height];
 		mem_zero(m_pDoor, (size_t)m_Width * m_Height * sizeof(CDoorTile));
 	}
 
 	if(m_pLayers->TuneLayer())
 	{
-		unsigned int Size = m_pLayers->Map()->GetDataSize(m_pLayers->TuneLayer()->m_Tune);
-		if(Size >= (size_t)m_Width * m_Height * sizeof(CTuneTile))
-			m_pTune = static_cast<CTuneTile *>(m_pLayers->Map()->GetData(m_pLayers->TuneLayer()->m_Tune));
+		m_pTune = static_cast<CTuneTile *>(m_pLayers->Map()->GetData(m_pLayers->TuneLayer()->m_Tune));
 	}
 
 	if(m_pLayers->FrontLayer())
 	{
-		unsigned int Size = m_pLayers->Map()->GetDataSize(m_pLayers->FrontLayer()->m_Front);
-		if(Size >= (size_t)m_Width * m_Height * sizeof(CTile))
-			m_pFront = static_cast<CTile *>(m_pLayers->Map()->GetData(m_pLayers->FrontLayer()->m_Front));
+		m_pFront = static_cast<CTile *>(m_pLayers->Map()->GetData(m_pLayers->FrontLayer()->m_Front));
 	}
 
 	if(m_pSwitch)
@@ -543,7 +532,7 @@ void CCollision::MoveBox(vec2 *pInoutPos, vec2 *pInoutVel, vec2 Size, vec2 Elast
 	vec2 Vel = *pInoutVel;
 
 	float Distance = length(Vel);
-	int Max = (int)Distance;
+	int Max = round_truncate(Distance);
 
 	if(Distance > 0.00001f)
 	{
@@ -676,9 +665,7 @@ int CCollision::IsTeleport(int Index) const
 
 int CCollision::IsEvilTeleport(int Index) const
 {
-	if(Index < 0)
-		return 0;
-	if(!m_pTele)
+	if(Index < 0 || !m_pTele)
 		return 0;
 
 	if(m_pTele[Index].m_Type == TILE_TELEINEVIL)
@@ -703,10 +690,7 @@ bool CCollision::IsCheckEvilTeleport(int Index) const
 
 int CCollision::IsTeleCheckpoint(int Index) const
 {
-	if(Index < 0)
-		return 0;
-
-	if(!m_pTele)
+	if(Index < 0 || !m_pTele)
 		return 0;
 
 	if(m_pTele[Index].m_Type == TILE_TELECHECK)
@@ -917,10 +901,17 @@ bool CCollision::TileExistsNext(int Index) const
 	return false;
 }
 
+static int TileIndexFromCoord(float Coord, int Size)
+{
+	if(!(Coord > 0.0f))
+		return 0;
+	return (int)std::min((double)Coord / 32.0, (double)(Size - 1));
+}
+
 int CCollision::GetMapIndex(vec2 Pos) const
 {
-	int Nx = std::clamp((int)Pos.x / 32, 0, m_Width - 1);
-	int Ny = std::clamp((int)Pos.y / 32, 0, m_Height - 1);
+	int Nx = TileIndexFromCoord(Pos.x, m_Width);
+	int Ny = TileIndexFromCoord(Pos.y, m_Height);
 	int Index = Ny * m_Width + Nx;
 
 	if(TileExists(Index))

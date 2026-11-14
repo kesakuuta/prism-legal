@@ -1,26 +1,36 @@
-# Prism v0.2.0
+# Prism Legit Edition v0.3.0
 
-Prism v0.2.0 is the first public release of the Windows-focused DDNet client.
+Prism v0.3.0 is a complete modernisation and legitimacy overhaul of the Windows-focused DDNet client.
 
 ## What's included
 
-- Dedicated **Insert** ClickGUI with Prism's dark-glass visual identity.
-- Configurable Tee/Hook visuals, effects, trails and visible-player boxes.
-- Modular HUD, hotkey/client information and input visualization.
-- Draggable layouts, snapping, lock/reset controls, themes, alpha-aware color picking and configurable animations.
-- Multi-action macro support with explicit input ownership.
-- **Hook Assist** that only assists while you manually use Hook.
-- **Freeze Avoid** with bounded prediction and route-preserving recovery using movement, jump and Hook/aim when required.
-- Improved behavior in narrow, low-clearance DDNet/KOG passages.
-- Separate Prism configuration so normal DDNet settings are not overwritten.
+- **Upgraded to DDNet 20.3**: Rebased onto the latest upstream DDNet release with all engine improvements, protocol updates, and optimizations.
+- **100% Legit Client**: All cheat features have been completely removed:
+  - Removed Hook Assist (aimbot / aim correction)
+  - Removed Freeze Avoid (automated hazard prediction and dodging)
+  - Removed Multi-action Macros and Double Tee automated assistants
+  - Removed cheat tabs and synthetic input pulse composition
+- **Dedicated T-Client Settings**:
+  - Added new "T-Client" tab in main Settings menu
+  - Ported TClient Rainbow engine (dynamic hue cycling for Tee, Hook, Weapon)
+  - Ported TClient Outlines & Colored Parts
+  - Ported TClient Trails & Statusbar HUD
+  - Ported TClient Pet System, Player Indicator, Bindwheel, Bindchat, and Warlist
+- **Chinese Conical Hat (斗笠)**:
+  - Custom 3D-perspective conical hat worn naturally on the Tee's head with dynamic sway and aim tilt.
+  - 8 triangular translucent facets fanned out with structural rib lines matching authentic Asian coolie hats.
+  - Three visual modes:
+    1. Custom Static Color with facet depth shading
+    2. Rainbow Gradient Wave with flowing color cycle across facets
+    3. Shimmering Monochrome Luster with moving metallic/silk sheen wave
+  - Fully customizable via dedicated "Hat" tab in the Prism ClickGUI (`Insert` key): colors, facet alpha, rib alpha, speed, scale, and offset.
+- **Rust Core Module**:
+  - Implemented Chinese Hat math, procedural geometry generation, and color shaders in Rust (`src/base/chinese_hat.rs`) integrated into DDNet's official Rust workspace (`ddnet-base`) with zero-allocation render loop.
+  - Dual Rust + C++ bindings for seamless cross-platform compilation.
 
-## Validation
+## Controls
 
-The release workflow builds and tests both Windows Debug and Release configurations before publishing. The Release package is additionally reopened and smoke-tested, and ships with build provenance, file hashes and dependency license notices.
-
-## Notes
-
-- Target: Windows 10/11 x64.
-- Builds are currently unsigned, so Windows may show an unsigned-app warning.
-- Prism is under active development; behavior and configuration can change in later releases.
-- Prism is an independent modified DDNet distribution and is not an official DDNet release.
+- **Insert**: Open/close Prism ClickGUI overlay.
+- **Esc**: Close overlay or return to game.
+- **F1**: DDNet console.
+- **Settings Menu**: Native DDNet settings now includes a dedicated "T-Client" section.

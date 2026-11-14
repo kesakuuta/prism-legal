@@ -11,7 +11,6 @@
 #include <generated/protocol.h>
 
 #include <game/client/component.h>
-#include <game/client/prism_input.h>
 
 class CControls : public CComponent
 {
@@ -26,6 +25,7 @@ public:
 		AUTOMATED,
 	};
 
+	bool m_aMouseOnAction[NUM_DUMMIES];
 	vec2 m_aMousePos[NUM_DUMMIES];
 	vec2 m_aMousePosOnAction[NUM_DUMMIES];
 	vec2 m_aTargetPos[NUM_DUMMIES];
@@ -37,8 +37,6 @@ public:
 	int64_t m_LastSendTime;
 	CNetObj_PlayerInput m_aInputData[NUM_DUMMIES];
 	CNetObj_PlayerInput m_aLastData[NUM_DUMMIES];
-	CNetObj_PlayerInput m_aPrismLastOutput[NUM_DUMMIES] = {};
-	PrismInput::CFireComposer m_aPrismFire[NUM_DUMMIES];
 	int m_aInputDirectionLeft[NUM_DUMMIES];
 	int m_aInputDirectionRight[NUM_DUMMIES];
 	int m_aShowHookColl[NUM_DUMMIES];
@@ -62,5 +60,9 @@ private:
 	static void ConKeyInputCounter(IConsole::IResult *pResult, void *pUserData);
 	static void ConKeyInputSet(IConsole::IResult *pResult, void *pUserData);
 	static void ConKeyInputNextPrevWeapon(IConsole::IResult *pResult, void *pUserData);
+	static void ConTpToCursor(IConsole::IResult *pResult, void *pUserData);
+	static void ConTpDummyToCursor(IConsole::IResult *pResult, void *pUserData);
+	vec2 CursorWorldPos() const;
+	void SendPracticeTeleportToCursor(int Conn);
 };
 #endif

@@ -238,7 +238,6 @@ bool CTouchControls::CTouchButton::IsInside(vec2 TouchPosition) const
 		return distance(TouchPosition, m_ScreenRect.Center()) <= std::min(m_ScreenRect.w, m_ScreenRect.h) / 2.0f;
 	default:
 		dbg_assert_failed("Unhandled shape");
-		return false;
 	}
 }
 
@@ -794,7 +793,7 @@ void CTouchControls::OnWindowResize()
 	}
 }
 
-bool CTouchControls::OnTouchState(const std::vector<IInput::CTouchFingerState> &vTouchFingerStates)
+bool CTouchControls::OnTouchState(std::vector<IInput::CTouchFingerState> &vTouchFingerStates)
 {
 	if(!g_Config.m_ClTouchControls)
 		return false;
@@ -815,6 +814,7 @@ bool CTouchControls::OnTouchState(const std::vector<IInput::CTouchFingerState> &
 		UpdateButtonsEditor(vTouchFingerStates);
 	else
 		UpdateButtonsGame(vTouchFingerStates);
+	vTouchFingerStates.clear();
 	return true;
 }
 

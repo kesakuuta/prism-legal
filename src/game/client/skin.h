@@ -17,8 +17,6 @@ public:
 	public:
 		IGraphics::CTextureHandle m_Body;
 		IGraphics::CTextureHandle m_BodyOutline;
-		IGraphics::CTextureHandle m_PrismBodyMask;
-		IGraphics::CTextureHandle m_PrismFeetMask;
 
 		IGraphics::CTextureHandle m_Feet;
 		IGraphics::CTextureHandle m_FeetOutline;
@@ -102,4 +100,3 @@ public:
 };
 
 #endif
-

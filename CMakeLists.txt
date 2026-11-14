@@ -1,8 +1,26 @@
 cmake_minimum_required(VERSION 3.12...3.27.4)
 
-set(CMAKE_OSX_DEPLOYMENT_TARGET 10.15 CACHE STRING "Minimum macOS deployment version")
-if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.15)
-  message(WARNING "Building for macOS < 10.15 is not supported")
+# In-source builds writes into src/generated, causing out-of-date files to be reused in later builds
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+  message(FATAL_ERROR
+    "In-source builds are not supported. To build out of source:\n"
+    "  rm -rf CMakeCache.txt CMakeFiles src/generated\n"
+    "  cmake -Bbuild -GNinja\n"
+    "  cmake --build build")
+endif()
+
+set(IS_IOS FALSE)
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+  set(IS_IOS TRUE)
+elseif(DEFINED CMAKE_OSX_SYSROOT AND CMAKE_OSX_SYSROOT MATCHES "iphoneos|iphonesimulator")
+  set(IS_IOS TRUE)
+endif()
+
+if(NOT IS_IOS)
+  set(CMAKE_OSX_DEPLOYMENT_TARGET 10.15 CACHE STRING "Minimum macOS deployment version")
+  if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.15)
+    message(WARNING "Building for macOS < 10.15 is not supported")
+  endif()
 endif()
 
 file(STRINGS src/game/version.h VERSION_LINE
@@ -29,8 +47,6 @@ else()
 endif()
 
 set(ORIGINAL_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
-set(ORIGINAL_CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES})
-set(ORIGINAL_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
 set(OWN_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 set(CMAKE_MODULE_PATH ${OWN_CMAKE_MODULE_PATH})
 
@@ -56,7 +72,9 @@ else()
   endif()
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+if(IS_IOS)
+  set(TARGET_OS "ios")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
   set(TARGET_OS "windows")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(TARGET_OS "linux")
@@ -117,6 +135,7 @@ option(VULKAN "Enable the vulkan backend" ${AUTO_VULKAN_BACKEND})
 
 option(EXCEPTION_HANDLING "Enable crashdumps (only works with Windows)" OFF)
 option(IPO "Enable interprocedural optimizations" OFF)
+option(PRECOMPILE_HEADERS "Precompile commonly used headers to speed up compilation (requires CMake 3.16)" ON)
 set(FUSE_LD OFF CACHE STRING "Linker to use")
 option(SECURITY_COMPILER_FLAGS "Whether to set security-relevant compiler flags like -D_FORTIFY_SOURCE=2 and -fstack-protector-strong" ON)
 option(MACOS_CODESIGN "Whether to sign code when building the DMG on macOS" OFF)
@@ -124,6 +143,13 @@ set(EXTERNAL_STEAM_API_DYLIB "" CACHE FILEPATH "Path to an external libsteam_api
 
 if(EXTERNAL_STEAM_API_DYLIB AND NOT EXISTS "${EXTERNAL_STEAM_API_DYLIB}")
   message(FATAL_ERROR "EXTERNAL_STEAM_API_DYLIB does not exist: ${EXTERNAL_STEAM_API_DYLIB}")
+endif()
+
+list(LENGTH CMAKE_OSX_ARCHITECTURES NUM_OSX_ARCHITECTURES)
+if(PRECOMPILE_HEADERS AND NUM_OSX_ARCHITECTURES GREATER 1)
+  # Fat macOS builds with PCH break -mbranch-protection, since it's x86-64 only.
+  message(STATUS "Disabling precompiled headers for fat macOS build")
+  set(PRECOMPILE_HEADERS OFF)
 endif()
 
 if(TARGET_OS STREQUAL "mac" AND MACOS_CODESIGN)
@@ -164,8 +190,6 @@ if(NOT(CMAKE_BUILD_TYPE MATCHES "^(Release|Debug|RelWithDebInfo|MinSizeRel)$"))
   message(WARNING "Unknown CMAKE_BUILD_TYPE, should be one of Release, Debug, RelWithDebInfo or MinSizeRel")
 endif()
 
-set(DBG $<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>)
-
 if(IPO)
   include(CheckIPOSupported)
   check_ipo_supported(RESULT ipo_supported OUTPUT ipo_output)
@@ -183,15 +207,19 @@ if(NOT "${CMAKE_CURRENT_BINARY_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
 set(SERVER_EXECUTABLE DDNet-Server CACHE STRING "Name of the built server executable")
-if(TARGET_OS STREQUAL "windows")
-  set(CLIENT_EXECUTABLE Prism CACHE STRING "Name of the build client executable")
-else()
-  set(CLIENT_EXECUTABLE DDNet CACHE STRING "Name of the build client executable")
-endif()
+set(CLIENT_EXECUTABLE DDNet CACHE STRING "Name of the build client executable")
+set(IOS_BUNDLE_IDENTIFIER "org.ddnet.client" CACHE STRING "iOS bundle identifier")
 
 ########################################################################
 # Compiler flags
 ########################################################################
+
+check_cxx_compiler_flag(-Werror=unused-command-line-argument FLAG_SUPPORTED_Werror_unused_command_line_argument)
+if(FLAG_SUPPORTED_Werror_unused_command_line_argument)
+  set(FLAG_CHECK_FLAGS "-Werror=unused-command-line-argument")
+else()
+  set(FLAG_CHECK_FLAGS "")
+endif()
 
 function(add_c_compiler_flag_if_supported VARIABLE FLAG)
   if(ARGC GREATER 2)
@@ -200,6 +228,7 @@ function(add_c_compiler_flag_if_supported VARIABLE FLAG)
     set(CHECKED_FLAG "${FLAG}")
   endif()
   string(REGEX REPLACE "[^A-Za-z0-9]" "_" CONFIG_VARIABLE "FLAG_SUPPORTED${CHECKED_FLAG}")
+  set(CMAKE_REQUIRED_FLAGS "${FLAG_CHECK_FLAGS}")
   check_c_compiler_flag("${CHECKED_FLAG}" ${CONFIG_VARIABLE})
   if(${CONFIG_VARIABLE})
     if(${VARIABLE})
@@ -217,6 +246,7 @@ function(add_cxx_compiler_flag_if_supported VARIABLE FLAG)
     set(CHECKED_FLAG "${FLAG}")
   endif()
   string(REGEX REPLACE "[^A-Za-z0-9]" "_" CONFIG_VARIABLE "FLAG_SUPPORTED${CHECKED_FLAG}")
+  set(CMAKE_REQUIRED_FLAGS "${FLAG_CHECK_FLAGS}")
   check_cxx_compiler_flag("${CHECKED_FLAG}" ${CONFIG_VARIABLE})
   if(${CONFIG_VARIABLE})
     if(${VARIABLE})
@@ -280,7 +310,9 @@ if(NOT MSVC AND NOT HAIKU)
             endif()
           endif()
         endif()
-      else()
+      elseif(NOT TARGET_OS STREQUAL "windows")
+        # Windows: only the default linker handles GCC+LTO, gold can't produce
+        # PE binaries and lld ignores GCC's LTO plugin, leaving all objects empty.
         add_linker_flag_if_supported(OUR_FLAGS_LINK -fuse-ld=gold)
         if(FLAG_SUPPORTED_fuse_ld_gold)
           message(STATUS "Using gold linker")
@@ -294,6 +326,16 @@ if(NOT MSVC AND NOT HAIKU)
     add_cxx_compiler_flag_if_supported(OUR_FLAGS -fstack-protector-strong)
     if(MINGW)
       add_linker_flag_if_supported(OUR_FLAGS_LINK -lssp)
+    endif()
+    # Protect against stack clash attacks by probing every page of large stack allocations.
+    add_cxx_compiler_flag_if_supported(OUR_FLAGS -fstack-clash-protection)
+    # Forward-edge control-flow protection (CET on x86, BTI/PAC on aarch64).
+    add_cxx_compiler_flag_if_supported(OUR_FLAGS -fcf-protection=full)
+    add_cxx_compiler_flag_if_supported(OUR_FLAGS -mbranch-protection=standard)
+    if(NOT TARGET_OS STREQUAL "windows" AND NOT TARGET_OS STREQUAL "mac")
+      # Resolve all dynamic symbols at startup and make the GOT read-only afterwards (full RELRO).
+      add_linker_flag_if_supported(OUR_FLAGS_LINK -Wl,-z,relro)
+      add_linker_flag_if_supported(OUR_FLAGS_LINK -Wl,-z,now)
     endif()
   endif()
 
@@ -313,7 +355,11 @@ if(NOT MSVC AND NOT HAIKU)
   add_cxx_compiler_flag_if_supported(OUR_FLAGS -fsigned-char)
 
   # Support more sections in object files, because the limit is exceeded for some files in debug mode.
-  add_cxx_compiler_flag_if_supported(OUR_FLAGS -Wa,-mbig-obj)
+  # Not with IPO, because GCC's LTO plugin cannot read big-obj COFF files, making
+  # the linker treat all LTO objects as empty. Stays far below the limit with LTO anyway.
+  if(NOT ENABLE_IPO)
+    add_cxx_compiler_flag_if_supported(OUR_FLAGS -Wa,-mbig-obj)
+  endif()
 
   # Don't insert timestamps into PEs to keep the build reproducible.
   if(TARGET_OS STREQUAL "windows")
@@ -360,6 +406,7 @@ if(NOT MSVC AND NOT HAIKU)
   add_cxx_compiler_flag_if_supported(OUR_FLAGS_OWN -Wthread-safety)
   add_cxx_compiler_flag_if_supported(OUR_FLAGS_OWN -Wthread-safety-negative)
   add_linker_flag_if_supported(OUR_FLAGS_LINK -Wno-alloc-size-larger-than) # save.cpp with LTO
+  add_linker_flag_if_supported(OUR_FLAGS_LINK -Wno-stringop-overflow) # str_copy with LTO
   # tidy-alphabetical-end
   # add_cxx_compiler_flag_if_supported(OUR_FLAGS_OWN -Wdouble-promotion) # Many occurrences
   # add_cxx_compiler_flag_if_supported(OUR_FLAGS_OWN -Wnull-dereference) # Many occurrences
@@ -367,7 +414,17 @@ if(NOT MSVC AND NOT HAIKU)
 endif()
 
 if(NOT MSVC AND NOT HAIKU AND SECURITY_COMPILER_FLAGS)
-  check_c_compiler_flag("-O2;-Wp,-Werror;-D_FORTIFY_SOURCE=2" DEFINE_FORTIFY_SOURCE) # Some distributions define _FORTIFY_SOURCE by themselves.
+  # Use the highest level the compiler lets us set
+  check_c_compiler_flag("-O2;-Wp,-Werror;-D_FORTIFY_SOURCE=3" DEFINE_FORTIFY_SOURCE_3)
+  check_c_compiler_flag("-O2;-Wp,-Werror;-D_FORTIFY_SOURCE=2" DEFINE_FORTIFY_SOURCE)
+  if(NOT CMAKE_VERSION VERSION_LESS 3.14 AND NOT TARGET_OS STREQUAL "emscripten")
+    # Build position-independent executables so the main binary image participates in ASLR.
+    include(CheckPIESupported)
+    check_pie_supported(LANGUAGES C CXX)
+    if(CMAKE_C_LINK_PIE_SUPPORTED AND CMAKE_CXX_LINK_PIE_SUPPORTED)
+      set(ENABLE_PIE TRUE)
+    endif()
+  endif()
 endif()
 
 ########################################################################
@@ -451,6 +508,15 @@ if(FAT)
   set(LIB_DIR "${TARGET_OS}/libfat")
 elseif(TARGET_OS STREQUAL "emscripten")
   set(LIB_DIR "webasm/libwasm")
+elseif(TARGET_OS STREQUAL "ios")
+  set(LIB_DIR "ios")
+  # The iOS libraries are bundled as xcframeworks containing one device slice
+  # and one universal simulator slice, see scripts/compile_libs/gen_libs.sh.
+  if(CMAKE_OSX_SYSROOT MATCHES "iphonesimulator")
+    set(IOS_XCFRAMEWORK_SLICE "ios-arm64_x86_64-simulator")
+  else()
+    set(IOS_XCFRAMEWORK_SLICE "ios-arm64")
+  endif()
 elseif(TARGET_CPU_ARCHITECTURE STREQUAL "arm" OR TARGET_CPU_ARCHITECTURE STREQUAL "arm64")
   set(LIB_DIR "${TARGET_OS}/lib${TARGET_CPU_ARCHITECTURE}")
 else()
@@ -465,7 +531,12 @@ function(set_extra_dirs_lib VARIABLE NAME)
   else()
     set(TYPE PATHS)
   endif()
-  if(TARGET_BITS AND TARGET_OS)
+  if(TARGET_OS STREQUAL "ios")
+    # Every iOS library is bundled as an xcframework with one folder per slice.
+    file(GLOB DIR "${PROJECT_SOURCE_DIR}/ddnet-libs/${NAME}/${LIB_DIR}/*.xcframework/${IOS_XCFRAMEWORK_SLICE}")
+    set("${TYPE}_${VARIABLE}_LIBDIR" "${DIR}" PARENT_SCOPE)
+    set("EXTRA_${VARIABLE}_LIBDIR" "${DIR}" PARENT_SCOPE)
+  elseif(TARGET_BITS AND TARGET_OS)
     set(DIR "ddnet-libs/${NAME}/${LIB_DIR}")
     set("${TYPE}_${VARIABLE}_LIBDIR" "${DIR}" PARENT_SCOPE)
     set("EXTRA_${VARIABLE}_LIBDIR" "${DIR}" PARENT_SCOPE)
@@ -486,7 +557,7 @@ function(set_extra_dirs_include VARIABLE NAME LIBRARY)
 endfunction()
 
 if(CMAKE_CROSSCOMPILING)
-  if(TARGET_OS STREQUAL "android" OR TARGET_OS STREQUAL "emscripten")
+  if(TARGET_OS STREQUAL "android" OR TARGET_OS STREQUAL "emscripten" OR TARGET_OS STREQUAL "ios")
     # be more aggressive with android toolchain
     set(CROSSCOMPILING_NO_CMAKE_SYSTEM_PATH NO_CMAKE_SYSTEM_PATH NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
   else()
@@ -529,9 +600,10 @@ find_package(Freetype)
 if(DOWNLOAD_GTEST)
   find_package(Git)
 endif()
-if(NOT(TARGET_OS STREQUAL "android"))
+if(NOT(TARGET_OS STREQUAL "android" OR TARGET_OS STREQUAL "ios"))
   find_package(GLEW)
 endif()
+find_package(EGL QUIET)
 find_package(GTest)
 if(UPNP)
   find_package(Miniupnpc)
@@ -590,7 +662,7 @@ endif()
 
 message(STATUS "******** ${CMAKE_PROJECT_NAME} ********")
 set(TARGET "Target OS: ${TARGET_OS} ${CMAKE_SYSTEM_PROCESSOR}")
-if(TARGET_OS STREQUAL "mac")
+if(TARGET_OS STREQUAL "mac" OR TARGET_OS STREQUAL "ios")
   set(TARGET "${TARGET} (SDK: ${CMAKE_OSX_SYSROOT}, architectures: ${CMAKE_OSX_ARCHITECTURES})")
 endif()
 message(STATUS ${TARGET})
@@ -734,11 +806,22 @@ if(TARGET_OS STREQUAL "windows")
   list(APPEND PLATFORM_LIBS ws2_32.lib) # Windows sockets
   list(APPEND PLATFORM_LIBS advapi32.lib) # Reg* and Crypt* functions
   list(APPEND PLATFORM_LIBS bcrypt.lib userenv.lib) # for Rust (https://github.com/rust-lang/rust/issues/91974)
+  list(APPEND PLATFORM_LIBS synchronization.lib) # for Rust
   list(APPEND PLATFORM_LIBS ole32.lib) # CoInitialize(Ex)
   list(APPEND PLATFORM_LIBS shell32.lib)
   list(APPEND PLATFORM_LIBS ntdll.lib) # https://github.com/ddnet/ddnet/issues/6725
   list(APPEND PLATFORM_LIBS uuid.lib) # FOLDERID_RoamingAppData
 elseif(TARGET_OS STREQUAL "mac")
+  if(NOT CMAKE_VERSION VERSION_LESS 3.16)
+    if(NOT CMAKE_OBJCXX_COMPILER)
+      set(CMAKE_OBJCXX_COMPILER "${CMAKE_CXX_COMPILER}")
+    endif()
+    if(NOT CMAKE_OBJCXX_COMPILER_LAUNCHER)
+      set(CMAKE_OBJCXX_COMPILER_LAUNCHER "${CMAKE_CXX_COMPILER_LAUNCHER}")
+    endif()
+    enable_language(OBJCXX)
+    set(CMAKE_OBJCXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_OBJCXX_FLAGS}")
+  endif()
   find_library(CARBON Carbon)
   find_library(COCOA Cocoa)
   find_library(OPENGL OpenGL)
@@ -749,6 +832,48 @@ elseif(TARGET_OS STREQUAL "mac")
   )
   set(PLATFORM_CLIENT_LIBS ${COCOA} ${OPENGL})
   set(PLATFORM_LIBS ${CARBON} ${SECURITY})
+elseif(TARGET_OS STREQUAL "ios")
+  # Frameworks required by SDL2, see its CMakeLists.txt.
+  find_library(AUDIOTOOLBOX AudioToolbox)
+  find_library(AVFOUNDATION AVFoundation)
+  find_library(COREBLUETOOTH CoreBluetooth)
+  find_library(COREGRAPHICS CoreGraphics)
+  find_library(COREHAPTICS CoreHaptics)
+  find_library(COREMOTION CoreMotion)
+  find_library(FOUNDATION Foundation)
+  find_library(GAMECONTROLLER GameController)
+  find_library(METAL Metal)
+  find_library(OPENGLES OpenGLES)
+  find_library(QUARTZCORE QuartzCore)
+  find_library(UIKIT UIKit)
+  # CoreFoundation for os_locale_str, Security and SystemConfiguration for curl.
+  find_library(COREFOUNDATION CoreFoundation)
+  find_library(SECURITY Security)
+  find_library(SYSTEMCONFIGURATION SystemConfiguration)
+  set(PLATFORM_CLIENT
+    src/ios/ios_main.mm
+  )
+  set(PLATFORM_CLIENT_LIBS
+    # tidy-alphabetical-start
+    ${AUDIOTOOLBOX}
+    ${AVFOUNDATION}
+    ${COREBLUETOOTH}
+    ${COREFOUNDATION}
+    ${COREGRAPHICS}
+    ${COREHAPTICS}
+    ${COREMOTION}
+    ${FOUNDATION}
+    ${GAMECONTROLLER}
+    ${METAL}
+    ${OPENGLES}
+    ${QUARTZCORE}
+    ${SECURITY}
+    ${SYSTEMCONFIGURATION}
+    ${UIKIT}
+    # tidy-alphabetical-end
+  )
+  set(PLATFORM_LIBS)
+  set(PLATFORM_CLIENT_INCLUDE_DIRS)
 elseif(TARGET_OS STREQUAL "haiku")
     set(PLATFORM_CLIENT)
     find_package(OpenGL)
@@ -784,6 +909,9 @@ else()
   else()
     set(PLATFORM_LIBS)
   endif()
+endif()
+if(TOOLS)
+  show_dependency_status("EGL" EGL) # egl also checks for OpenGL::EGL
 endif()
 
 ########################################################################
@@ -937,6 +1065,12 @@ endif()
 if(RUST_NIGHTLY)
   list(APPEND CARGO_BUILD -Z build-std=std,panic_abort)
 endif()
+if(TARGET_OS STREQUAL "ios")
+  # CMAKE_RUST_COMPILER_TARGET is set by scripts/ios/cmake_ios.sh to match the iOS build target.
+  list(APPEND CARGO_BUILD --target ${CMAKE_RUST_COMPILER_TARGET})
+  list(APPEND CARGO_TEST --target ${CMAKE_RUST_COMPILER_TARGET})
+  set(CARGO_BUILD_DIR "${CMAKE_RUST_COMPILER_TARGET}/")
+endif()
 if(NOT CMAKE_OSX_ARCHITECTURES AND (DEFINED CMAKE_RUST_COMPILER_TARGET OR RUST_NIGHTLY))
   if(DEFINED CMAKE_RUST_COMPILER_TARGET)
     list(APPEND CARGO_TEST --target ${CMAKE_RUST_COMPILER_TARGET})
@@ -950,6 +1084,7 @@ endif()
 set(CARGO_BUILD_DIR_DEBUG "${CARGO_BUILD_DIR}debug")
 set(CARGO_BUILD_DIR_RELEASE "${CARGO_BUILD_DIR}release")
 set(CARGO_BUILD_DIR_RELWITHDEBINFO "${CARGO_BUILD_DIR}relwithdebinfo")
+set(CARGO_BUILD_DIR_MINSIZEREL "${CARGO_BUILD_DIR}minsizerel")
 
 # We can't check this directly; it is a cmake property, not a variable
 get_cmake_property(MULTI_CONFIG_BUILD GENERATOR_IS_MULTI_CONFIG)
@@ -957,11 +1092,13 @@ if(MULTI_CONFIG_BUILD)
   if(CMAKE_VERSION VERSION_LESS 3.20)
     message(SEND_ERROR "Multi-config generators only supported from CMake 3.20 and up")
   else()
-    set(CARGO_BUILD_DIR "${CARGO_BUILD_DIR}$<IF:$<CONFIG:Debug>,debug,$<IF:$<CONFIG:RelWithDebInfo>,relwithdebinfo,release>>")
+    set(CARGO_BUILD_DIR "${CARGO_BUILD_DIR}$<IF:$<CONFIG:Debug>,debug,$<IF:$<CONFIG:RelWithDebInfo>,relwithdebinfo,$<IF:$<CONFIG:MinSizeRel>,minsizerel,release>>>")
     list(APPEND CARGO_BUILD
       $<$<CONFIG:RelWithDebInfo>:--profile>
       $<$<CONFIG:RelWithDebInfo>:relwithdebinfo>
-      $<$<NOT:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>>:--release>)
+      $<$<CONFIG:MinSizeRel>:--profile>
+      $<$<CONFIG:MinSizeRel>:minsizerel>
+      $<$<NOT:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>,$<CONFIG:MinSizeRel>>>:--release>)
   endif()
 else()
   if(CMAKE_BUILD_TYPE STREQUAL Debug)
@@ -969,6 +1106,9 @@ else()
   elseif(CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo)
     set(CARGO_BUILD_DIR "${CARGO_BUILD_DIR_RELWITHDEBINFO}")
     list(APPEND CARGO_BUILD --profile relwithdebinfo)
+  elseif(CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
+    set(CARGO_BUILD_DIR "${CARGO_BUILD_DIR_MINSIZEREL}")
+    list(APPEND CARGO_BUILD --profile minsizerel)
   else()
     set(CARGO_BUILD_DIR "${CARGO_BUILD_DIR_RELEASE}")
     list(APPEND CARGO_BUILD --release)
@@ -981,7 +1121,7 @@ if(TARGET_OS STREQUAL "emscripten")
   list(INSERT CARGO_BUILD 0 ${CMAKE_COMMAND} -E env CXXFLAGS="-DRUST_CXX_NO_EXCEPTIONS")
 endif()
 
-if(CMAKE_OSX_ARCHITECTURES)
+if(CMAKE_OSX_ARCHITECTURES AND TARGET_OS STREQUAL "mac")
   set(RUST_OSX_ARCHITECTURES)
   foreach(arch ${CMAKE_OSX_ARCHITECTURES})
     if(${arch} STREQUAL arm64)
@@ -1002,7 +1142,7 @@ set(RUST_SRC
       Cargo.lock
 )
 set(RUST_TARGETS engine_shared)
-if(NOT CMAKE_OSX_ARCHITECTURES)
+if(NOT CMAKE_OSX_ARCHITECTURES OR TARGET_OS STREQUAL "ios")
   set(RUST_OUTPUTS)
   foreach(rust_target ${RUST_TARGETS})
     set(LIBRARY_NAME "${CMAKE_STATIC_LIBRARY_PREFIX}ddnet_${rust_target}${CMAKE_STATIC_LIBRARY_SUFFIX}")
@@ -1013,6 +1153,7 @@ if(NOT CMAKE_OSX_ARCHITECTURES)
       IMPORTED_LOCATION "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR_RELEASE}/${LIBRARY_NAME}"
       IMPORTED_LOCATION_DEBUG "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR_DEBUG}/${LIBRARY_NAME}"
       IMPORTED_LOCATION_RELWITHDEBINFO "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR_RELWITHDEBINFO}/${LIBRARY_NAME}"
+      IMPORTED_LOCATION_MINSIZEREL "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR_MINSIZEREL}/${LIBRARY_NAME}"
     )
     list(APPEND RUST_OUTPUTS "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR}/${LIBRARY_NAME}")
   endforeach()
@@ -1031,6 +1172,7 @@ else()
       IMPORTED_LOCATION "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR_RELEASE}/${LIBRARY_NAME}"
       IMPORTED_LOCATION_DEBUG "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR_DEBUG}/${LIBRARY_NAME}"
       IMPORTED_LOCATION_RELWITHDEBINFO "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR_RELWITHDEBINFO}/${LIBRARY_NAME}"
+      IMPORTED_LOCATION_MINSIZEREL "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR_MINSIZEREL}/${LIBRARY_NAME}"
     )
     add_custom_target(rust_${rust_target}_target DEPENDS "${PROJECT_BINARY_DIR}/${CARGO_BUILD_DIR}/${LIBRARY_NAME}")
     add_dependencies(rust_${rust_target} rust_${rust_target}_target)
@@ -1507,13 +1649,7 @@ set(EXPECTED_DATA
   fonts/DejaVuSans.ttf
   fonts/Font_Awesome_6_Free-Solid-900.otf
   fonts/GlowSansJ-Compressed-Book.otf
-  fonts/Manrope-LICENSE.txt
-  fonts/Manrope-Medium.ttf
-  fonts/Manrope-SemiBold.ttf
-  fonts/PRISM-FONTS.txt
   fonts/SourceHanSans.ttc
-  fonts/Unbounded-ExtraBold.ttf
-  fonts/Unbounded-LICENSE.txt
   fonts/index.json
   game.png
   gui_buttons.png
@@ -1955,6 +2091,7 @@ set(COPY_FILES
   ${SQLite3_COPY_FILES}
   ${SSP_COPY_FILES}
   ${VULKAN_COPY_FILES}
+  ${WAVPACK_COPY_FILES}
   ${WEBSOCKETS_COPY_FILES}
   # tidy-alphabetical-end
 )
@@ -2103,6 +2240,8 @@ set_src(BASE GLOB_RECURSE src/base
   bezier.h
   bytes.cpp
   bytes.h
+  chinese_hat.cpp
+  chinese_hat.h
   color.cpp
   color.h
   crashdump.cpp
@@ -2257,10 +2396,6 @@ set_src(ENGINE_SHARED GLOB_RECURSE src/engine/shared
   network_stun.cpp
   packer.cpp
   packer.h
-  prism_effect_variables.h
-  prism_qol_variables.h
-  prism_theme_variables.h
-  prism_variables.h
   protocol.h
   protocol7.h
   protocol_ex.cpp
@@ -2386,8 +2521,11 @@ add_library(engine-gfx EXCLUDE_FROM_ALL OBJECT ${ENGINE_GFX})
 target_include_directories(engine-gfx PRIVATE ${PNG_INCLUDE_DIRS})
 add_library(engine-shared EXCLUDE_FROM_ALL OBJECT ${ENGINE_INTERFACE} ${ENGINE_SHARED} ${ENGINE_UUID_SHARED} ${BASE})
 add_library(game-shared EXCLUDE_FROM_ALL OBJECT ${GAME_SHARED} ${GAME_GENERATED_SHARED})
+# game-shared compiles src/generated/data_types.h, so the Xcode generator needs
+# generate_content_types to be a dependency of it, not just of its consumers.
 # tidy-alphabetical-start
 add_dependencies(engine-shared generate_protocol)
+add_dependencies(game-shared generate_content_types)
 add_dependencies(game-shared generate_protocol)
 # tidy-alphabetical-end
 list(APPEND TARGETS_OWN engine-gfx engine-shared game-shared)
@@ -2446,8 +2584,11 @@ if(CLIENT)
     backend/opengles/opengles_sl_program.cpp
     backend/vulkan/backend_vulkan.cpp
     backend/vulkan/backend_vulkan.h
+    backend_egl.cpp
+    backend_egl.h
     backend_sdl.cpp
     backend_sdl.h
+    backend_threaded.cpp
     blocklist_driver.cpp
     blocklist_driver.h
     checksum.h
@@ -2470,6 +2611,8 @@ if(CLIENT)
     graphics_threaded_sprites.cpp
     input.cpp
     input.h
+    keyboard.cpp
+    keyboard.h
     keynames.cpp
     keynames.h
     notifications.cpp
@@ -2499,6 +2642,7 @@ if(CLIENT)
     # tidy-alphabetical-start
     animstate.cpp
     animstate.h
+    assets.cpp
     component.cpp
     component.h
     components/background.cpp
@@ -2576,6 +2720,47 @@ if(CLIENT)
     components/menus_settings_language.cpp
     components/menus_settings_player.cpp
     components/menus_settings_prism.cpp
+    components/tclient/bg_draw.cpp
+    components/tclient/bg_draw.h
+    components/tclient/bg_draw_file.cpp
+    components/tclient/bg_draw_file.h
+    components/tclient/bindchat.cpp
+    components/tclient/bindchat.h
+    components/tclient/bindwheel.cpp
+    components/tclient/bindwheel.h
+    components/tclient/colored_parts.h
+    components/tclient/custom_communities.cpp
+    components/tclient/custom_communities.h
+    components/tclient/data_version.h
+    components/tclient/menus_tclient.cpp
+    components/tclient/mod.cpp
+    components/tclient/mod.h
+    components/tclient/moving_tiles.cpp
+    components/tclient/moving_tiles.h
+    components/tclient/mumble.cpp
+    components/tclient/mumble.h
+    components/tclient/outlines.cpp
+    components/tclient/outlines.h
+    components/tclient/pet.cpp
+    components/tclient/pet.h
+    components/tclient/player_indicator.cpp
+    components/tclient/player_indicator.h
+    components/tclient/rainbow.cpp
+    components/tclient/rainbow.h
+    components/tclient/skinprofiles.cpp
+    components/tclient/skinprofiles.h
+    components/tclient/statusbar.cpp
+    components/tclient/statusbar.h
+    components/tclient/tclient.cpp
+    components/tclient/tclient.h
+    components/tclient/trails.cpp
+    components/tclient/trails.h
+    components/tclient/translate.cpp
+    components/tclient/translate.h
+    components/tclient/warlist.cpp
+    components/tclient/warlist.h
+    components/tooltips.cpp
+    components/tooltips.h
     components/menus_settings_sound.cpp
     components/menus_settings_tee.cpp
     components/menus_settings_tee7.cpp
@@ -2603,8 +2788,6 @@ if(CLIENT)
     components/spectator.h
     components/statboard.cpp
     components/statboard.h
-    components/tooltips.cpp
-    components/tooltips.h
     components/touch_controls.cpp
     components/touch_controls.h
     components/voting.cpp
@@ -2615,6 +2798,7 @@ if(CLIENT)
     laser_data.h
     lineinput.cpp
     lineinput.h
+    multiview.cpp
     pickup_data.cpp
     pickup_data.h
     prediction/entities/character.cpp
@@ -2635,19 +2819,15 @@ if(CLIENT)
     prediction/entity.h
     prediction/gameworld.cpp
     prediction/gameworld.h
+    projectile_data.cpp
+    projectile_data.h
     prism.h
-    prism_assist.cpp
-    prism_assist.h
     prism_effects.h
     prism_effects_render.h
-    prism_input.h
-    prism_qol.h
     prism_theme.cpp
     prism_theme.h
     prism_ui.h
     prism_version.h
-    projectile_data.cpp
-    projectile_data.h
     race.cpp
     race.h
     render.cpp
@@ -2657,6 +2837,8 @@ if(CLIENT)
     sixup_translate_snapshot.cpp
     skin.cpp
     skin.h
+    tooltips.cpp
+    tooltips.h
     ui.cpp
     ui.h
     ui_listbox.cpp
@@ -2787,7 +2969,7 @@ if(CLIENT)
   )
   set(CLIENT_SRC ${ENGINE_CLIENT} ${PLATFORM_CLIENT} ${GAME_CLIENT} ${GAME_EDITOR} ${GAME_MAP} ${GAME_GENERATED_CLIENT})
 
-  set(DEPS_CLIENT ${DEPS} ${GLEW_DEP} ${WAVPACK_DEP})
+  set(DEPS_CLIENT ${DEPS} ${GLEW_DEP})
 
   # Libraries
   set(LIBS_CLIENT
@@ -2807,7 +2989,6 @@ if(CLIENT)
     ${OGG_LIBRARIES}
 
     ${TARGET_STEAMAPI}
-    rust_engine_shared
 
     ${PLATFORM_CLIENT_LIBS}
     ${LIBS}
@@ -2855,6 +3036,20 @@ if(CLIENT)
       $<TARGET_OBJECTS:rust-bridge-shared>
       # tidy-alphabetical-end
     )
+  elseif(TARGET_OS STREQUAL "ios")
+    add_executable(game-client MACOSX_BUNDLE
+      ${CLIENT_SRC}
+      ${CLIENT_ICON}
+      ${CLIENT_VERSIONINFO}
+      ${CLIENT_MANIFEST}
+      ${DEPS_CLIENT}
+      # tidy-alphabetical-start
+      $<TARGET_OBJECTS:engine-gfx>
+      $<TARGET_OBJECTS:engine-shared>
+      $<TARGET_OBJECTS:game-shared>
+      $<TARGET_OBJECTS:rust-bridge-shared>
+      # tidy-alphabetical-end
+    )
   else()
     add_executable(game-client WIN32
       ${CLIENT_SRC}
@@ -2878,6 +3073,27 @@ if(CLIENT)
       PROPERTY OUTPUT_NAME ${CLIENT_EXECUTABLE}
   )
   target_link_libraries(game-client ${LIBS_CLIENT})
+
+  if(TARGET_OS STREQUAL "ios")
+    set(IOS_INFO_PLIST "${PROJECT_BINARY_DIR}/ios-Info.plist")
+    configure_file("${PROJECT_SOURCE_DIR}/scripts/ios/files/Info.plist.in" "${IOS_INFO_PLIST}")
+    target_sources(game-client PRIVATE "${PROJECT_SOURCE_DIR}/scripts/ios/files/Assets.xcassets")
+    set_source_files_properties("${PROJECT_SOURCE_DIR}/scripts/ios/files/Assets.xcassets" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    set_target_properties(game-client PROPERTIES
+      MACOSX_BUNDLE_INFO_PLIST "${IOS_INFO_PLIST}"
+      MACOSX_BUNDLE_GUI_IDENTIFIER "${IOS_BUNDLE_IDENTIFIER}"
+      XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${IOS_BUNDLE_IDENTIFIER}"
+      XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
+      XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon"
+    )
+    # SDL2 adds categories to the GameController classes, which are only loaded
+    # from the static library with -ObjC.
+    target_link_options(game-client PRIVATE "-ObjC")
+    add_custom_command(TARGET game-client POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/data $<TARGET_BUNDLE_DIR:game-client>/data
+      COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/storage.cfg $<TARGET_BUNDLE_DIR:game-client>/storage.cfg
+    )
+  endif()
 
   if(MSVC)
     target_link_options(game-client PRIVATE /ENTRY:mainCRTStartup)
@@ -2904,27 +3120,6 @@ if(CLIENT)
 
   if(STEAMAPI_KIND STREQUAL SHARED OR DISCORD_DYNAMIC)
     set_own_rpath(game-client)
-  endif()
-
-  set(PARAMS "${WAVPACK_INCLUDE_DIRS};${WAVPACK_LIBRARIES}")
-  if(NOT(WAVPACK_OPEN_FILE_INPUT_EX_PARAMS STREQUAL PARAMS))
-    unset(WAVPACK_OPEN_FILE_INPUT_EX CACHE)
-  endif()
-  set(WAVPACK_OPEN_FILE_INPUT_EX_PARAMS "${PARAMS}" CACHE INTERNAL "")
-
-  set(CMAKE_REQUIRED_INCLUDES ${ORIGINAL_CMAKE_REQUIRED_INCLUDES} ${WAVPACK_INCLUDE_DIRS})
-  set(CMAKE_REQUIRED_LIBRARIES ${ORIGINAL_CMAKE_REQUIRED_LIBRARIES} ${WAVPACK_LIBRARIES})
-  check_symbol_exists(WavpackOpenFileInputEx wavpack.h WAVPACK_OPEN_FILE_INPUT_EX)
-  check_symbol_exists(WavpackCloseFile wavpack.h WAVPACK_CLOSE_FILE)
-  set(CMAKE_REQUIRED_INCLUDES ${ORIGINAL_CMAKE_REQUIRED_INCLUDES})
-  set(CMAKE_REQUIRED_LIBRARIES ${ORIGINAL_CMAKE_REQUIRED_LIBRARIES})
-
-  if(WAVPACK_OPEN_FILE_INPUT_EX)
-    target_compile_definitions(game-client PRIVATE CONF_WAVPACK_OPEN_FILE_INPUT_EX)
-  endif()
-
-  if(WAVPACK_CLOSE_FILE)
-    target_compile_definitions(game-client PRIVATE CONF_WAVPACK_CLOSE_FILE)
   endif()
 
   if(GLEW_BUNDLED)
@@ -3076,7 +3271,6 @@ if(SERVER)
     ${MINIUPNPC_LIBRARIES}
     ${MYSQL_LIBRARIES}
     ${TARGET_ANTIBOT}
-    rust_engine_shared
 
     ${LIBS}
   )
@@ -3176,6 +3370,7 @@ if(TOOLS)
     map_extract.cpp
     map_find_env.cpp
     map_optimize.cpp
+    map_render.cpp
     map_replace_area.cpp
     map_replace_image.cpp
     map_resave.cpp
@@ -3191,6 +3386,9 @@ if(TOOLS)
     file(RELATIVE_PATH T "${PROJECT_SOURCE_DIR}/src/tools/" ${ABS_T})
     if(T MATCHES "\\.cpp$")
       string(REGEX REPLACE "\\.cpp$" "" TOOL "${T}")
+      if(TOOL MATCHES "^map_render$" AND NOT EGL_FOUND)
+        continue()
+      endif()
       set(TOOL_DEPS ${DEPS})
       set(TOOL_LIBS ${LIBS})
       unset(EXTRA_TOOL_SRC)
@@ -3201,6 +3399,11 @@ if(TOOLS)
       endif()
       if(TOOL MATCHES "^config_")
         list(APPEND EXTRA_TOOL_SRC "src/tools/config_common.h")
+      endif()
+      if(TOOL MATCHES "^map_render$")
+        list(APPEND TOOL_INCLUDE_DIRS ${PNG_INCLUDE_DIRS} ${FREETYPE_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS})
+        list(APPEND TOOL_DEPS $<TARGET_OBJECTS:engine-gfx> ${GLEW_DEP})
+        list(APPEND TOOL_LIBS ${PNG_LIBRARIES} ${FREETYPE_LIBRARIES} ${GLEW_LIBRARIES} ${CMAKE_DL_LIBS} ${EGL_LIBRARY} ${OPENGL_gl_LIBRARY})
       endif()
       set(EXCLUDE_FROM_ALL)
       if(DEV)
@@ -3217,6 +3420,32 @@ if(TOOLS)
       )
       target_include_directories(${TOOL} SYSTEM PRIVATE ${TOOL_INCLUDE_DIRS})
       target_link_libraries(${TOOL} ${TOOL_LIBS})
+      if(TOOL MATCHES "^map_render$")
+        target_sources(map_render PRIVATE
+          src/engine/client/graphics_threaded.cpp
+          src/engine/client/backend_egl.cpp
+          src/engine/client/backend/opengl/backend_opengl.cpp
+          src/engine/client/backend/opengl/backend_opengl3.cpp
+          src/engine/client/backend/opengl/opengl_sl.cpp
+          src/engine/client/backend/opengl/opengl_sl_program.cpp
+          src/engine/client/backend/glsl_shader_compiler.cpp
+          src/engine/client/backend/backend_base.cpp
+          src/engine/client/backend_threaded.cpp
+          src/engine/client/blocklist_driver.cpp
+          src/engine/client/warning.cpp
+          src/game/map/map_renderer.cpp
+          src/game/map/render_layer.cpp
+          src/game/map/render_map.cpp
+          src/game/map/render_component.cpp
+          src/game/map/envelope_extrema.cpp
+          ${PROJECT_BINARY_DIR}/src/generated/client_data.h
+        )
+        target_include_directories(map_render PRIVATE ${PROJECT_BINARY_DIR})
+        target_compile_definitions(map_render PRIVATE BACKEND_NO_SDL)
+        if(GLEW_BUNDLED)
+          target_compile_definitions(map_render PRIVATE CONF_GLEW_HAS_CONTEXT_INIT)
+        endif()
+      endif()
       list(APPEND TARGETS_TOOLS ${TOOL})
     endif()
   endforeach()
@@ -3274,6 +3503,7 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     chunk_header_test.cpp
     color_test.cpp
     compression_test.cpp
+    console_test.cpp
     csv_test.cpp
     datafile_test.cpp
     dbg_test.cpp
@@ -3299,7 +3529,6 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     network_test.cpp
     os_test.cpp
     packer_test.cpp
-    prism_test.cpp
     prng_test.cpp
     replace_words_test.cpp
     score_test.cpp
@@ -3358,7 +3587,7 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
   list(APPEND TARGETS_LINK ${TARGET_TESTRUNNER})
 
   add_custom_target(run_cxx_tests
-    COMMAND $<TARGET_FILE:${TARGET_TESTRUNNER}> ${TESTRUNNER_ARGS}
+    COMMAND $<TARGET_FILE:${TARGET_TESTRUNNER}> --gtest_brief=1 ${TESTRUNNER_ARGS}
     COMMENT Running unit tests
     DEPENDS ${TARGET_TESTRUNNER}
     USES_TERMINAL
@@ -3366,14 +3595,32 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
   add_custom_target(run_tests
     DEPENDS run_cxx_tests
   )
-  if(NOT MSVC OR CMAKE_BUILD_TYPE STREQUAL Release)
+  add_custom_target(run_cxx_tests_verbose
+    COMMAND $<TARGET_FILE:${TARGET_TESTRUNNER}> --no-capture ${TESTRUNNER_ARGS}
+    COMMENT Running unit tests
+    DEPENDS ${TARGET_TESTRUNNER}
+    USES_TERMINAL
+  )
+  add_custom_target(run_tests_verbose
+    DEPENDS run_cxx_tests_verbose
+  )
+  if(NOT MSVC OR CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo OR CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
     # On MSVC, Rust tests only work in the release mode because we link our C++
     # code with the debug C standard library (/MTd) but Rust only supports
     # linking to the release C standard library (/MT).
     #
     # See also https://github.com/rust-lang/rust/issues/39016.
     add_dependencies(run_tests run_rust_tests)
+    add_dependencies(run_tests_verbose run_rust_tests)
   endif()
+endif()
+
+if(ENABLE_IPO AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  foreach(target engine-gfx engine-shared game-shared rust-bridge-shared json md5 zlib)
+    if(TARGET ${target})
+      target_compile_options(${target} PRIVATE -ffat-lto-objects)
+    endif()
+  endforeach()
 endif()
 
 add_library(rust_test STATIC EXCLUDE_FROM_ALL
@@ -3465,7 +3712,7 @@ function(regex_inverted VAR)
   set(${VAR} ${RESULT} PARENT_SCOPE)
 endfunction()
 
-set(CPACK_PACKAGE_NAME Prism)
+set(CPACK_PACKAGE_NAME ${PROJECT_NAME})
 set(CPACK_GENERATOR TGZ TXZ)
 set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
 if(TARGET_OS STREQUAL "mac")
@@ -3482,7 +3729,7 @@ set(CPACK_SOURCE_GENERATOR ZIP TGZ TBZ2 TXZ)
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
-set(CPACK_PACKAGE_VERSION 0.1.0)
+set(CPACK_PACKAGE_VERSION ${VERSION})
 set(CPACK_SYSTEM_NAME ${CMAKE_SYSTEM_NAME})
 
 if(TARGET_OS AND TARGET_BITS)
@@ -3534,13 +3781,11 @@ set(CPACK_SOURCE_FILES
   datasrc/
   ddnet-libs/
   license.txt
-  lsan.supp
   memcheck.supp
   other/
   scripts/
   src/
   storage.cfg
-  ubsan.supp
   valgrind.supp
   # tidy-alphabetical-end
 )
@@ -3572,6 +3817,9 @@ if(TOOLS)
     map_extract
     # tidy-alphabetical-end
   )
+  if(EGL_FOUND)
+    list(APPEND TARGET_TOOLS map_render)
+  endif()
 else()
   set(TARGET_TOOLS)
 endif()
@@ -3596,9 +3844,6 @@ endif()
 list(APPEND CPACK_DIRS ${COPY_DIRS})
 set(CPACK_FILES
   license.txt
-  README.md
-  FOUNDATION.md
-  VALIDATION.md
   ${COPY_FILES}
 )
 if(NOT TARGET_OS STREQUAL "emscripten")
@@ -3754,6 +3999,7 @@ if(CLIENT AND DMGBUILD_FOUND)
   if(SERVER)
     set(DMG_SERVER_COMMANDS
       COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/data/maps ${DMG_TMPDIR}/${SERVER_EXECUTABLE}.app/Contents/Resources/data/maps
+      COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/data/autoexec_server.cfg ${DMG_TMPDIR}/${SERVER_EXECUTABLE}.app/Contents/Resources/data/
       COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/other/icons/${SERVER_EXECUTABLE}.icns ${DMG_TMPDIR}/${SERVER_EXECUTABLE}.app/Contents/Resources/
       COMMAND ${CMAKE_COMMAND} -E copy bundle/server/Info.plist ${PROJECT_SOURCE_DIR}/other/bundle/server/PkgInfo ${DMG_TMPDIR}/${SERVER_EXECUTABLE}.app/Contents/
       COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:game-server> $<TARGET_FILE:game-server-launcher> ${DMG_TMPDIR}/${SERVER_EXECUTABLE}.app/Contents/MacOS/
@@ -3924,7 +4170,7 @@ source_group_tree(src)
 
 if(ANTIBOT)
   # Allow the antibot library to use functions from the server binary.
-  add_cxx_compiler_flag_if_supported(OUR_FLAGS_LINK -rdynamic)
+  add_linker_flag_if_supported(OUR_FLAGS_LINK -rdynamic)
   set_own_rpath(game-server)
 endif()
 
@@ -3954,15 +4200,20 @@ foreach(target ${TARGETS})
   if(OUR_FLAGS)
     target_compile_options(${target} PRIVATE ${OUR_FLAGS})
   endif()
-  if(DEFINE_FORTIFY_SOURCE)
+  if(DEFINE_FORTIFY_SOURCE_3 OR DEFINE_FORTIFY_SOURCE)
     if(MINGW)
       target_compile_definitions(${target} PRIVATE $<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=0>) # Currently broken in MinGW, see https://sourceforge.net/p/mingw-w64/discussion/723798/thread/b9d24f041f/
+    elseif(DEFINE_FORTIFY_SOURCE_3)
+      target_compile_definitions(${target} PRIVATE $<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=3>) # Detect some buffer overflows, including in dynamically-sized buffers.
     else()
       target_compile_definitions(${target} PRIVATE $<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=2>) # Detect some buffer overflows.
     endif()
   endif()
   if(ENABLE_IPO)
     set_property(TARGET ${target} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+  endif()
+  if(ENABLE_PIE)
+    set_property(TARGET ${target} PROPERTY POSITION_INDEPENDENT_CODE TRUE)
   endif()
   if(TARGET_OS STREQUAL "emscripten")
     # Preload data directory into the filesystem
@@ -3985,10 +4236,24 @@ foreach(target ${TARGETS_LINK})
   endif()
 endforeach()
 
+if(PRECOMPILE_HEADERS AND NOT CMAKE_VERSION VERSION_LESS 3.16)
+  foreach(target engine-shared game-client game-server-without-main game-shared testrunner)
+    if(TARGET ${target})
+      target_precompile_headers(${target} PRIVATE src/pch.h)
+    endif()
+  endforeach()
+  if(TARGET testrunner)
+    target_precompile_headers(testrunner PRIVATE <gtest/gtest.h>)
+  endif()
+endif()
+
 foreach(target ${TARGETS_OWN})
   set_property(TARGET ${target} PROPERTY CXX_STANDARD 20)
   set_property(TARGET ${target} PROPERTY CXX_STANDARD_REQUIRED ON)
   set_property(TARGET ${target} PROPERTY CXX_EXTENSIONS OFF)
+  set_property(TARGET ${target} PROPERTY OBJCXX_STANDARD 20)
+  set_property(TARGET ${target} PROPERTY OBJCXX_STANDARD_REQUIRED ON)
+  set_property(TARGET ${target} PROPERTY OBJCXX_EXTENSIONS OFF)
 
   if(MSVC)
     # tidy-alphabetical-start
