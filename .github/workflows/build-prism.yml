@@ -1,95 +1,218 @@
 
-name: Build Prism Client
+name: Prism Windows
 
 on:
   push:
-    branches: [main]
-    tags: ['v*']
+    branches:
+      - feature/prism-v0.1.0-windows
+      - feature/prism-overlay-ui
+      - feature/prism-phase3-qol-identity
+      - feature/prism-visual-identity-vnext
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - feature/prism-v0.1.0-windows
+      - feature/prism-overlay-ui
+      - feature/prism-phase3-qol-identity
+      - main
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: prism-windows-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
 jobs:
-  build-windows:
-    name: Windows x64 — Build, Tests and Package
+  build:
     runs-on: windows-2022
-    timeout-minutes: 90
 
-    permissions:
-      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration:
+          - Release
+          - Debug
 
     steps:
-      - name: Checkout repository
+      - name: Checkout source
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           submodules: recursive
+          persist-credentials: false
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-msvc
+      - name: Verify triggering revision
+        shell: pwsh
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
 
-      - name: Configure CMake
+          if ($actual -ne '${{ github.sha }}') {
+            throw "Unexpected checkout: $actual"
+          }
+
+          git diff --exit-code
+          git submodule status --recursive
+
+          New-Item -ItemType Directory -Force build | Out-Null
+          $actual | Set-Content build/TESTED_COMMIT.txt
+
+      - name: Install WavPack
+        shell: pwsh
+        run: |
+          $vcpkgRoot = $env:VCPKG_INSTALLATION_ROOT
+
+          if ([string]::IsNullOrWhiteSpace($vcpkgRoot)) {
+            throw "VCPKG_INSTALLATION_ROOT is not defined on this runner."
+          }
+
+          $vcpkg = Join-Path $vcpkgRoot "vcpkg.exe"
+
+          if (-not (Test-Path $vcpkg)) {
+            throw "vcpkg executable not found: $vcpkg"
+          }
+
+          & $vcpkg install wavpack:x64-windows-static
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "vcpkg failed to install WavPack."
+          }
+
+          $wavpackRoot = Join-Path $vcpkgRoot "installed/x64-windows-static"
+          $wavpackHeader = Join-Path $wavpackRoot "include/wavpack.h"
+          $wavpackLibrary = Join-Path $wavpackRoot "lib/wavpack.lib"
+
+          if (-not (Test-Path $wavpackHeader)) {
+            throw "WavPack header not found: $wavpackHeader"
+          }
+
+          if (-not (Test-Path $wavpackLibrary)) {
+            throw "WavPack library not found: $wavpackLibrary"
+          }
+
+          "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "WAVPACK_ROOT=$wavpackRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+          Write-Host "WavPack header: $wavpackHeader"
+          Write-Host "WavPack library: $wavpackLibrary"
+
+      - name: Configure
         shell: pwsh
         run: |
           cmake -S . -B build -A x64 `
+            -DCMAKE_BUILD_TYPE=${{ matrix.configuration }} `
+            -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_${{ matrix.configuration == 'Release' && 'RELEASE' || 'DEBUG' }}=. `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DWAVPACK_INCLUDEDIR="$env:WAVPACK_ROOT/include" `
+            -DWAVPACK_LIBRARY="$env:WAVPACK_ROOT/lib/wavpack.lib" `
+            -DDOWNLOAD_GTEST=ON `
             -DCLIENT=ON `
-            -DSERVER=OFF `
+            -DSERVER=ON `
             -DTOOLS=OFF `
             -DVULKAN=OFF `
-            -DDOWNLOAD_GTEST=ON `
             -DAUTOUPDATE=OFF `
             -DSTEAM=OFF `
             -DDISCORD=OFF `
-            -DCLIENT_EXECUTABLE=Prism
+            -DTESTRUNNER_ARGS=--gtest_output=xml:tests.xml
 
-      - name: Build Debug
-        run: cmake --build build --config Debug --target game-client testrunner --parallel 4
+          if ($LASTEXITCODE -ne 0) {
+            throw "CMake configure failed."
+          }
 
-      - name: Run Debug C++ Tests
-        run: cmake --build build --config Debug --target run_cxx_tests
+      - name: Verify WavPack configuration
+        shell: pwsh
+        run: |
+          $cache = Get-Content build/CMakeCache.txt -Raw
 
-      - name: Build Release
-        run: cmake --build build --config Release --target game-client testrunner --parallel 4
+          if ($cache -notmatch 'WAVPACK_LIBRARY:FILEPATH=.*wavpack\.lib') {
+            throw "CMake did not resolve WAVPACK_LIBRARY."
+          }
 
-      - name: Run Release C++ and Rust Tests
-        run: cmake --build build --config Release --target run_tests
+          if ($cache -notmatch 'WAVPACK_INCLUDEDIR:PATH=.*include') {
+            throw "CMake did not resolve WAVPACK_INCLUDEDIR."
+          }
 
-      - name: Build Portable Distribution
-        run: cmake --build build --config Release --target package_default --parallel 4
+          Write-Host "WavPack was successfully detected by CMake."
 
-      - name: Verify Distribution
+      - name: Build client and tests
+        shell: pwsh
+        run: |
+          cmake --build build `
+            --config ${{ matrix.configuration }} `
+            --target game-client testrunner `
+            --parallel 4
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Build failed."
+          }
+
+      - name: Run tests
+        shell: pwsh
+        run: |
+          cmake --build build `
+            --config ${{ matrix.configuration }} `
+            --target run_tests
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Tests failed."
+          }
+
+      - name: Package
+        if: matrix.configuration == 'Release'
+        shell: pwsh
+        run: |
+          cmake --build build --config Release --target package_default
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Packaging failed."
+          }
+
+      - name: Verify distribution
+        id: package
+        if: matrix.configuration == 'Release'
+        shell: pwsh
         env:
           PRISM_EXPECTED_COMMIT: ${{ github.sha }}
-        run: python scripts/package_prism.py build
+        run: |
+          python scripts/package_prism.py build
 
-      - name: Smoke Test
-        run: python scripts/smoke_prism.py build/verified-package/Prism
+          if ($LASTEXITCODE -ne 0) {
+            throw "Package verification failed."
+          }
 
-      - name: Upload Build
+      - name: Packaged client smoke
+        if: matrix.configuration == 'Release'
+        shell: pwsh
+        run: |
+          python scripts/smoke_prism.py build/verified-package/Prism
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Packaged client smoke test failed."
+          }
+
+      - name: Upload release artifact
         uses: actions/upload-artifact@v4
+        if: matrix.configuration == 'Release' && success()
         with:
-          name: Prism-Windows-x64
-          path: dist/
+          name: ${{ steps.package.outputs.artifact_name }}
+          path: dist/*
           if-no-files-found: error
-          retention-days: 14
 
-      - name: Publish Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+      - name: Preserve test evidence
+        uses: actions/upload-artifact@v4
+        if: always()
         with:
-          files: dist/prism-windows-x64-*.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: prism-tests-${{ matrix.configuration }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/TESTED_COMMIT.txt
+            build/tests.xml
+            build/CMakeFiles/CMakeConfigureLog.yaml
+            dist/runtime-smoke.json
+          if-no-files-found: warn
