@@ -10,6 +10,7 @@
 #include <vector>
 
 class CTranslate;
+class CTranslateResponse;
 
 class ITranslateBackend
 {

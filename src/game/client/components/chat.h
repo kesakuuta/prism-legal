@@ -32,6 +32,7 @@ class CChat : public CComponent
 	};
 
 	CLineInputBuffered<MAX_CHAT_LENGTH> m_Input;
+public:
 	class CLine
 	{
 	public:
@@ -61,6 +62,7 @@ class CChat : public CComponent
 
 		int m_TimesRepeated;
 	};
+private:
 
 	bool m_PrevScoreBoardShowed;
 	bool m_PrevShowChat;
