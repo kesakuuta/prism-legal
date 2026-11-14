@@ -1,5 +1,7 @@
 #include "chinese_hat.h"
 
+#if defined(NO_RUST)
+
 #include <base/color.h>
 #include <base/vmath.h>
 
@@ -173,3 +175,5 @@ extern "C" void generate_chinese_hat_mesh(
 
 	pOutMesh->m_LineCount = LineIdx;
 }
+
+#endif // NO_RUST

@@ -2248,7 +2248,6 @@ set_src(BASE GLOB_RECURSE src/base
   bezier.h
   bytes.cpp
   bytes.h
-  chinese_hat.cpp
   chinese_hat.h
   color.cpp
   color.h
