@@ -47,8 +47,12 @@ def imports(path):
 
 def main():
     build = Path(sys.argv[1] if len(sys.argv) > 1 else 'build').resolve()
-    candidates = list(build.glob('Prism-*-win64.zip'))
-    assert len(candidates) == 1, f'Expected upstream package_default ZIP, found {candidates}'
+ # CMake project name is DDNet, even when the executable is named Prism.
+candidates = list(build.glob('DDNet-*-win64.zip'))
+assert len(candidates) == 1, (
+    f'Expected exactly one DDNet-*-win64.zip from package_default, '
+    f'found: {candidates}'
+)
     commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     expected = os.environ.get('PRISM_EXPECTED_COMMIT')
     if expected and commit != expected:
@@ -79,8 +83,17 @@ def main():
         executables = list(temp.rglob('Prism.exe'))
         assert len(executables) == 1, f'Expected one Prism.exe, found {executables}'
         package = executables[0].parent
-        for name in ['README.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'FOUNDATION.md', 'VALIDATION.md']:
-            shutil.copy2(ROOT / name, package / name)
+        for name in [
+    'README.md',
+    'CHANGELOG.md',
+    'CONTRIBUTING.md',
+    'FOUNDATION.md',
+    'VALIDATION.md',
+]:
+    source = ROOT / name
+
+    if source.is_file():
+        shutil.copy2(source, package / name)
         for base in [ROOT / 'data', ROOT / 'src' / 'engine' / 'external', ROOT / 'ddnet-libs']:
             if not base.exists():
                 continue
