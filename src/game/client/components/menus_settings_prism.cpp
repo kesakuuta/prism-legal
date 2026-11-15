@@ -438,9 +438,9 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
 	};
 
 	static CButtonContainer s_aActionButtons[64];
-	auto Button = [&](const char *pText, int Id, const ColorRGBA &Tint = ColorRGBA(0.37f, 0.47f, 0.58f, 0.25f)) {
+	auto Button = [&](const char *pText, int Id, const ColorRGBA &ButtonTint = ColorRGBA(0.37f, 0.47f, 0.58f, 0.25f)) {
 		CUIRect Row = NextRow(29.0f);
-		return !Scroll.RectClipped(Row) && DoButton_Menu(&s_aActionButtons[Id], LocalizeChroma(pText), 0, &Row, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f, 0.41f, Tint);
+		return !Scroll.RectClipped(Row) && DoButton_Menu(&s_aActionButtons[Id], LocalizeChroma(pText), 0, &Row, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f, 0.41f, ButtonTint);
 	};
 
 	switch(m_PrismCategory)

@@ -44,15 +44,13 @@ bool CChromaMenu::LoadTheme(IStorage *pStorage, const char *pFilePath, SMenuThem
 	if(!File)
 		return false;
 
-	io_seek(File, 0, IOSEEK_END);
-	const size_t FileSize = io_tell(File);
-	io_seek(File, 0, IOSEEK_START);
-
-	if(FileSize == 0 || FileSize > 1024 * 1024)
+	const int64_t Length = io_length(File);
+	if(Length <= 0 || Length > 1024 * 1024)
 	{
 		io_close(File);
 		return false;
 	}
+	const size_t FileSize = (size_t)Length;
 
 	std::string Buffer(FileSize, '\0');
 	io_read(File, &Buffer[0], FileSize);
