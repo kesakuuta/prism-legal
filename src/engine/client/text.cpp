@@ -330,6 +330,7 @@ private:
 	FT_Face m_PrismBodyFace = nullptr;
 	FT_Face m_PrismBodyBoldFace = nullptr;
 	FT_Face m_PrismHeadingFace = nullptr;
+	FT_Face m_PixelFace = nullptr;
 	FT_Face m_VariantFace = nullptr;
 	FT_Face m_SelectedFace = nullptr;
 	std::vector<FT_Face> m_vFallbackFaces;
@@ -648,6 +649,12 @@ public:
 		return m_PrismBodyFace && m_PrismBodyBoldFace && m_PrismHeadingFace;
 	}
 
+	bool SetPixelFaceByName(const char *pName)
+	{
+		m_PixelFace = GetFaceByName(pName);
+		return m_PixelFace != nullptr;
+	}
+
 	bool SetIconFaceByName(const char *pFamilyName)
 	{
 		m_IconFace = GetFaceByName(pFamilyName);
@@ -710,6 +717,9 @@ public:
 			break;
 		case EFontPreset::PRISM_HEADING:
 			m_SelectedFace = m_PrismHeadingFace;
+			break;
+		case EFontPreset::PIXEL_FONT:
+			m_SelectedFace = m_PixelFace ? m_PixelFace : m_PrismHeadingFace;
 			break;
 		}
 	}
@@ -1341,6 +1351,16 @@ public:
 			if(!m_pGlyphMap->SetPrismFacesByName(PrismBody.u.string.ptr, PrismBodyBold.u.string.ptr, PrismHeading.u.string.ptr))
 			{
 				log_warn("textrender", "Prism font faces unavailable; using default font fallback");
+			}
+		}
+
+		// extract pixel font family
+		const json_value &PixelFont = (*pJsonData)["pixel font"];
+		if(PixelFont.type == json_string)
+		{
+			if(!m_pGlyphMap->SetPixelFaceByName(PixelFont.u.string.ptr))
+			{
+				log_warn("textrender", "Pixel font face '%s' unavailable; using heading font fallback", PixelFont.u.string.ptr);
 			}
 		}
 

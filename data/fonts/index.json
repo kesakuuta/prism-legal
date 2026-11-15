@@ -6,7 +6,8 @@
         "SourceHanSans.ttc",
         "Manrope-Medium.ttf",
         "Manrope-SemiBold.ttf",
-        "Unbounded-ExtraBold.ttf"
+        "Unbounded-ExtraBold.ttf",
+        "PixelifySans-VariableFont_wght.ttf"
     ],
     "default": "DejaVu Sans",
     "language variants": {
@@ -21,5 +22,6 @@
     "icon": "Font Awesome 6 Free",
     "prism body": "Manrope Medium",
     "prism body bold": "Manrope SemiBold",
-    "prism heading": "Unbounded ExtraBold"
+    "prism heading": "Unbounded ExtraBold",
+    "pixel font": "Pixelify Sans"
 }

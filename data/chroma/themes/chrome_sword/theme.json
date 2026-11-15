@@ -49,5 +49,7 @@
     "demos",
     "editor",
     "quit"
-  ]
+  ],
+  "font": "fonts/PixelifySans-VariableFont_wght.ttf",
+  "font_family": "Pixelify Sans"
 }

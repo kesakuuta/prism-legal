@@ -36,6 +36,8 @@ public:
 	{
 		std::string m_Name;
 		std::string m_BackgroundPath;
+		std::string m_Font;
+		std::string m_FontFamily;
 		ColorRGBA m_BackgroundFill = ColorRGBA(0.04f, 0.04f, 0.05f, 1.0f);
 		std::string m_Greeting;
 		float m_GreetingFontSize = 26.0f;

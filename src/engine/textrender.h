@@ -64,6 +64,7 @@ enum class EFontPreset
 	PRISM_BODY,
 	PRISM_BODY_BOLD,
 	PRISM_HEADING,
+	PIXEL_FONT,
 };
 
 enum ETextCursorSelectionMode

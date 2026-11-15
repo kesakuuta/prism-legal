@@ -120,6 +120,10 @@ bool CChromaMenu::LoadTheme(IStorage *pStorage, const char *pFilePath, SMenuThem
 			Theme.m_Name = pVal->u.string.ptr;
 		else if(!str_comp(pKey, "background") && pVal->type == json_string)
 			Theme.m_BackgroundPath = pVal->u.string.ptr;
+		else if(!str_comp(pKey, "font") && pVal->type == json_string)
+			Theme.m_Font = pVal->u.string.ptr;
+		else if(!str_comp(pKey, "font_family") && pVal->type == json_string)
+			Theme.m_FontFamily = pVal->u.string.ptr;
 		else if(!str_comp(pKey, "background_fill"))
 			Theme.m_BackgroundFill = ParseColor(pVal, Theme.m_BackgroundFill);
 		else if(!str_comp(pKey, "greeting") && pVal->type == json_string)
@@ -275,6 +279,14 @@ void CChromaMenu::Render(CGameClient *pGameClient, CUIRect MainView)
 	}
 
 	const ColorRGBA OutlineCol = BrightBg ? ColorRGBA(1.0f, 1.0f, 1.0f, 0.40f) : ColorRGBA(0.0f, 0.0f, 0.0f, 0.65f);
+
+	// 1.5. Set font preset if theme requests custom/pixel font
+	const bool UsePixelFont = !s_ActiveTheme.m_FontFamily.empty() ||
+		s_ActiveTheme.m_Font.find("pixel") != std::string::npos ||
+		s_ActiveTheme.m_Font.find("Pixel") != std::string::npos ||
+		s_ActiveTheme.m_Name.find("Pixel") != std::string::npos;
+	if(UsePixelFont)
+		pGameClient->TextRender()->SetFontPreset(EFontPreset::PIXEL_FONT);
 
 	// 2. Render Greeting with dynamic player nickname ("Hello, <Nick>")
 	std::string Nick = pGameClient->Client()->PlayerName();
@@ -437,4 +449,7 @@ void CChromaMenu::Render(CGameClient *pGameClient, CUIRect MainView)
 		pGameClient->TextRender()->Text(Screen.x + 18.0f, Screen.y + Screen.h - 26.0f, 10.0f, pWatermark);
 		pGameClient->TextRender()->TextColor(pGameClient->TextRender()->DefaultTextColor());
 	}
+
+	if(UsePixelFont)
+		pGameClient->TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
 }
