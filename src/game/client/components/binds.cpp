@@ -553,5 +553,7 @@ void CBinds::SetDDRaceBinds(bool FreeOnly)
 		Bind(KEY_W, "+jump", FreeOnly);
 	}
 
+	Bind(KEY_INSERT, "toggle_prism", FreeOnly);
+
 	g_Config.m_ClDDRaceBindsSet = 3;
 }

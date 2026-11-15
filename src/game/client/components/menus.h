@@ -589,6 +589,8 @@ protected:
 	void RenderSettingsCredits(CUIRect MainView);
 	void RenderSettingsTClient(CUIRect MainView);
 	void RenderSettingsPrism(CUIRect MainView);
+	void RenderSettingsPrismTab(CUIRect MainView);
+	void TogglePrism();
 	bool IsPrismOpen() const { return m_PrismOpen; }
 
 	// found in menus_settings_ddnet.cpp
@@ -685,6 +687,8 @@ public:
 
 	void OnInterfacesInit(CGameClient *pClient) override;
 	void OnInit() override;
+	void OnConsoleInit() override;
+	static void ConTogglePrism(IConsole::IResult *pResult, void *pUserData);
 
 	void OnStateChange(int NewState, int OldState) override;
 	void OnWindowResize() override;
@@ -729,6 +733,7 @@ public:
 		SETTINGS_DDNET,
 		SETTINGS_ASSETS,
 		SETTINGS_TCLIENT,
+		SETTINGS_PRISM,
 		SETTINGS_CREDITS,
 
 		SETTINGS_LENGTH,

@@ -828,6 +828,30 @@ void CMenus::OnInit()
 
 	m_RefreshButton.Init(Ui(), -1);
 	m_ConnectButton.Init(Ui(), -1);
+}
+
+void CMenus::OnConsoleInit()
+{
+	Console()->Register("toggle_prism", "", CFGFLAG_CLIENT, ConTogglePrism, this, "Toggle Prism ClickGUI menu");
+}
+
+void CMenus::ConTogglePrism(IConsole::IResult *pResult, void *pUserData)
+{
+	CMenus *pSelf = (CMenus *)pUserData;
+	pSelf->TogglePrism();
+}
+
+void CMenus::TogglePrism()
+{
+	m_PrismOpen = !m_PrismOpen;
+	if(!m_PrismOpen)
+		Ui()->ClosePopupMenus();
+	Ui()->SetActiveItem(nullptr);
+	Ui()->SetHotItem(nullptr);
+	Ui()->ClearHotkeys();
+	if(m_PrismOpen)
+		GameClient()->OnRelease();
+}
 
 	Console()->Chain("add_favorite", ConchainFavoritesUpdate, this);
 	Console()->Chain("remove_favorite", ConchainFavoritesUpdate, this);
@@ -2325,18 +2349,9 @@ bool CMenus::OnCursorMove(float x, float y, IInput::ECursorType CursorType)
 
 bool CMenus::OnInput(const IInput::CEvent &Event)
 {
-	const bool Playing = Client()->State() == IClient::STATE_ONLINE || Client()->State() == IClient::STATE_DEMOPLAYBACK;
-	if(Playing && m_Popup == POPUP_NONE && (m_PrismOpen || !IsActive()) &&
-		(Event.m_Flags & IInput::FLAG_PRESS) && Event.m_Key == KEY_INSERT)
+	if(m_Popup == POPUP_NONE && (Event.m_Flags & IInput::FLAG_PRESS) && Event.m_Key == KEY_INSERT)
 	{
-		m_PrismOpen = !m_PrismOpen;
-		if(!m_PrismOpen)
-			Ui()->ClosePopupMenus();
-		Ui()->SetActiveItem(nullptr);
-		Ui()->SetHotItem(nullptr);
-		Ui()->ClearHotkeys();
-		if(m_PrismOpen)
-			GameClient()->OnRelease();
+		TogglePrism();
 		return true;
 	}
 	if(m_PrismOpen)
@@ -2435,8 +2450,27 @@ void CMenus::OnRender()
 		else if(Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		{
 			Ui()->ClearHotkeys();
-			return;
 		}
+
+		if(m_PrismOpen || m_PrismTransition > 0.0f)
+		{
+			Ui()->MapScreen();
+			Ui()->StartCheck();
+			UpdateColors();
+			Ui()->Update();
+			if(m_PrismOpen && !Ui()->IsPopupOpen() && Ui()->ConsumeHotkey(CUi::HOTKEY_TAB))
+			{
+				m_PrismCategory = (m_PrismCategory + 1) % 6;
+				Ui()->SetActiveItem(nullptr);
+			}
+			RenderSettingsPrism(*Ui()->Screen());
+			Ui()->RenderPopupMenus();
+			if(m_PrismOpen && !g_Config.m_PrismMenuCursor)
+				RenderTools()->RenderCursor(Ui()->MousePos(), 24.0f);
+			Ui()->FinishCheck();
+			Ui()->ClearHotkeys();
+		}
+		return;
 	}
 
 	Ui()->StartCheck();
@@ -2448,6 +2482,17 @@ void CMenus::OnRender()
 		Ui()->DoBackButton();
 
 	Render();
+
+	if(m_PrismOpen || m_PrismTransition > 0.0f)
+	{
+		if(m_PrismOpen && !Ui()->IsPopupOpen() && Ui()->ConsumeHotkey(CUi::HOTKEY_TAB))
+		{
+			m_PrismCategory = (m_PrismCategory + 1) % 6;
+			Ui()->SetActiveItem(nullptr);
+		}
+		RenderSettingsPrism(*Ui()->Screen());
+		Ui()->RenderPopupMenus();
+	}
 
 	if(IsActive())
 	{
@@ -2543,26 +2588,6 @@ void CMenus::RenderBackground()
 
 	// restore screen
 	Ui()->MapScreen();
-
-	if((m_PrismOpen || m_PrismTransition > 0.0f) &&
-		(Client()->State() == IClient::STATE_ONLINE || Client()->State() == IClient::STATE_DEMOPLAYBACK))
-	{
-		Ui()->MapScreen();
-		Ui()->StartCheck();
-		UpdateColors();
-		Ui()->Update();
-		if(m_PrismOpen && !Ui()->IsPopupOpen() && Ui()->ConsumeHotkey(CUi::HOTKEY_TAB))
-		{
-			m_PrismCategory = (m_PrismCategory + 1) % 6;
-			Ui()->SetActiveItem(nullptr);
-		}
-		RenderSettingsPrism(*Ui()->Screen());
-		Ui()->RenderPopupMenus();
-		if(m_PrismOpen && !g_Config.m_PrismMenuCursor)
-			RenderTools()->RenderCursor(Ui()->MousePos(), 24.0f);
-		Ui()->FinishCheck();
-		Ui()->ClearHotkeys();
-	}
 }
 
 int CMenus::DoButton_CheckBox_Tristate(const void *pId, const char *pText, TRISTATE Checked, const CUIRect *pRect)
