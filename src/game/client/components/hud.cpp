@@ -1989,8 +1989,8 @@ void CHud::RenderPrismModules()
 			char aPerf[64];
 			const int FramesPerSecond = round_to_int(1.0f / Client()->FrameTimeAverage());
 			int Ping = 0;
-			if(Client()->Snap()->m_pLocalInfo)
-				Ping = Client()->Snap()->m_pLocalInfo->m_Latency;
+			if(GameClient()->m_Snap.m_pLocalInfo)
+				Ping = GameClient()->m_Snap.m_pLocalInfo->m_Latency;
 			str_format(aPerf, sizeof(aPerf), "FPS: %d  PING: %d ms", FramesPerSecond, Ping);
 			Text(0, aPerf, true);
 			break;
