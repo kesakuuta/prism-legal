@@ -590,8 +590,6 @@ protected:
 	void RenderSettingsTClient(CUIRect MainView);
 	void RenderSettingsPrism(CUIRect MainView);
 	void RenderSettingsPrismTab(CUIRect MainView);
-	void TogglePrism();
-	bool IsPrismOpen() const { return m_PrismOpen; }
 
 	// found in menus_settings_ddnet.cpp
 	void RenderSettingsDDNet(CUIRect MainView);
@@ -684,6 +682,8 @@ public:
 
 	bool IsActive() const { return m_MenuActive; }
 	void SetActive(bool Active);
+	bool IsPrismOpen() const { return m_PrismOpen; }
+	void TogglePrism();
 
 	void OnInterfacesInit(CGameClient *pClient) override;
 	void OnInit() override;
