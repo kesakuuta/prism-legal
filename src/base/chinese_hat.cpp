@@ -139,7 +139,16 @@ extern "C" void generate_chinese_hat_mesh(
 	}
 
 	size_t LineIdx = 0;
-	ColorRGBA RibCol(pConfig->m_RibColor.r, pConfig->m_RibColor.g, pConfig->m_RibColor.b, pConfig->m_RibAlpha);
+	ColorRGBA RibCol;
+	if(pConfig->m_Mode == 1)
+	{
+		float RibHue = std::fmod(anim_time_sec * Speed * 0.35f + 0.25f, 1.0f);
+		RibCol = HsvToRgba(RibHue, 0.95f, 1.0f, pConfig->m_RibAlpha);
+	}
+	else
+	{
+		RibCol = ColorRGBA(pConfig->m_RibColor.r, pConfig->m_RibColor.g, pConfig->m_RibColor.b, pConfig->m_RibAlpha);
+	}
 
 	// Radial ribs from Apex to every rim vertex
 	for(int i = 0; i <= NumSegments && LineIdx < MAX_HAT_LINES; ++i)

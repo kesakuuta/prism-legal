@@ -146,6 +146,39 @@ static const char *LocalizeChroma(const char *pText)
 	if(!str_comp(pText, "Snap ClickGUI to edges")) return "Прилипание меню к краям";
 	if(!str_comp(pText, "Reset ClickGUI position")) return "Сбросить позицию меню";
 	if(!str_comp(pText, "Reset visual presets only")) return "Сбросить только пресеты визуалов";
+	if(!str_comp(pText, "Verified Staff")) return "Персонал сервера";
+	if(!str_comp(pText, "Input Overlay")) return "Оверлей клавиш";
+	if(!str_comp(pText, "Effects Status")) return "Статус эффектов";
+	if(!str_comp(pText, "Active Hotkeys")) return "Активные бинды";
+	if(!str_comp(pText, "chroma. name/version")) return "Имя и версия chroma.";
+	if(!str_comp(pText, "Performance")) return "Производительность";
+	if(!str_comp(pText, "Dummy Status")) return "Статус dummy";
+	if(!str_comp(pText, "Module scale: Active Hotkeys")) return "Масштаб: Активные бинды";
+	if(!str_comp(pText, "Module scale: Identity")) return "Масштаб: Имя и версия";
+	if(!str_comp(pText, "Module scale: Performance")) return "Масштаб: Производительность";
+	if(!str_comp(pText, "Module scale: Dummy")) return "Масштаб: Статус dummy";
+	if(!str_comp(pText, "Module scale: Staff")) return "Масштаб: Персонал";
+	if(!str_comp(pText, "Module scale: Input")) return "Масштаб: Ввод (клавиши)";
+	if(!str_comp(pText, "Module scale: Effects")) return "Масштаб: Эффекты";
+	if(!str_comp(pText, "Minimal")) return "Минимальный";
+	if(!str_comp(pText, "Streaming")) return "Стримерский";
+	if(!str_comp(pText, "Mode: Custom Static Color")) return "Режим: Свой цвет";
+	if(!str_comp(pText, "Mode: Rainbow Gradient Wave")) return "Режим: Радужная волна";
+	if(!str_comp(pText, "Mode: Shimmering Monochrome Luster")) return "Режим: Мерцающий блеск";
+	if(!str_comp(pText, "Mode: Off")) return "Режим: Выкл";
+	if(!str_comp(pText, "Mode: Leaves")) return "Режим: Листья";
+	if(!str_comp(pText, "Mode: Sparkles")) return "Режим: Искры";
+	if(!str_comp(pText, "Mode: Hearts")) return "Режим: Сердечки";
+	if(!str_comp(pText, "Mode: Pulse")) return "Режим: Пульс";
+	if(!str_comp(pText, "Trail: Off")) return "Трейл: Выкл";
+	if(!str_comp(pText, "Trail: Line")) return "Трейл: Линия";
+	if(!str_comp(pText, "Trail: Ribbon")) return "Трейл: Лента";
+	if(!str_comp(pText, "Trail: Particles")) return "Трейл: Частицы";
+	if(!str_comp(pText, "UI Color Palette")) return "Палитра интерфейса";
+	if(!str_comp(pText, "Menu cursor: System")) return "Курсор меню: Системный";
+	if(!str_comp(pText, "Menu cursor: DDNet")) return "Курсор меню: DDNet";
+	if(!str_comp(pText, "Scan / reload custom themes from disk")) return "Сканировать темы с диска";
+	if(!str_comp(pText, "Discovered custom themes")) return "Найденные темы на диске";
 
 	return pText;
 }
@@ -181,7 +214,7 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
 	{
 		CUIRect Grab = Panel;
 		Grab.h = std::min(32.0f, Panel.h);
-		if(!m_PrismDragging && Ui()->ActiveItem() == nullptr && Ui()->MouseButtonClicked(0) && Ui()->MouseInside(&Grab))
+		if(!m_PrismDragging && !Ui()->IsPopupOpen() && Ui()->ActiveItem() == nullptr && Ui()->MouseButtonClicked(0) && Ui()->MouseInside(&Grab))
 		{
 			m_PrismDragging = true;
 			m_PrismDragOffset = Ui()->MousePos() - Panel.TopLeft();
@@ -694,9 +727,29 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
 		{
 			CChromaMenu::ApplyPreset(0);
 		}
-		if(Button("Reload / apply custom JSON theme", 22))
+		if(Button("Scan / reload custom themes from disk", 22))
 		{
+			CChromaMenu::ScanThemes(Storage());
 			CChromaMenu::Reset();
+		}
+
+		// Display any custom themes discovered in chroma/themes/
+		const int DiscoveredCount = CChromaMenu::GetDiscoveredThemeCount();
+		if(DiscoveredCount > 0)
+		{
+			Label("Discovered custom themes");
+			for(int d = 0; d < DiscoveredCount; ++d)
+			{
+				const auto *pTh = CChromaMenu::GetDiscoveredTheme(d);
+				if(!pTh) continue;
+				char aThemeBtn[256];
+				str_format(aThemeBtn, sizeof(aThemeBtn), "Theme: %s", pTh->m_Name.c_str());
+				const bool Active = g_Config.m_ChromaMenuTheme == 4 && !str_comp(g_Config.m_ChromaThemePath, pTh->m_Path.c_str());
+				if(Button(aThemeBtn, 31 + d, Active ? ColorRGBA(0.42f, 0.62f, 0.82f, 0.55f) : ColorRGBA(0.32f, 0.40f, 0.48f, 0.22f)))
+				{
+					CChromaMenu::ApplyThemePath(pTh->m_Path.c_str());
+				}
+			}
 		}
 
 		Label("UI Color Palette");
@@ -752,7 +805,7 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
 
 	Scroll.End();
 	Footer.Draw(Theme.m_Text.WithAlpha(0.04f), IGraphics::CORNER_ALL, 5.0f);
-	Ui()->DoLabel(&Footer, g_Config.m_ChromaLanguage == 1 ? "chroma.  /  Insert или Esc" : "chroma.  /  Insert or Esc", 10.0f, TEXTALIGN_MC);
+	Ui()->DoLabel(&Footer, "chroma. v" CHROMA_VERSION, 10.5f, TEXTALIGN_MC);
 	TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
 	Prism::Validate(g_Config);
 }

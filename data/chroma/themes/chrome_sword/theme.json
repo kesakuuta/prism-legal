@@ -3,7 +3,7 @@
   "name": "Chrome Heart Sword",
   "background": "chroma/themes/chrome_sword/background.png",
   "background_fill": [0.68, 0.68, 0.68, 1.0],
-  "greeting": "Hello, chrome haert",
+  "greeting": "Hello, {player}",
   "greeting_font_size": 28.0,
   "greeting_color": [0.08, 0.08, 0.08, 1.0],
   "greeting_x": 0.10,
@@ -20,7 +20,7 @@
     "play",
     "settings",
     "skins",
-    "achievements",
-    "marketplace"
+    "demos",
+    "editor"
   ]
 }

@@ -3,7 +3,7 @@
   "name": "Chrome Heart Dark",
   "background": "chroma/themes/chrome_dark/background.png",
   "background_fill": [0.03, 0.03, 0.04, 1.0],
-  "greeting": "Hello, chrome haert",
+  "greeting": "Hello, {player}",
   "greeting_font_size": 28.0,
   "greeting_color": [0.90, 0.90, 0.92, 1.0],
   "greeting_x": 0.12,
@@ -20,7 +20,7 @@
     "play",
     "settings",
     "skins",
-    "achievements",
+    "demos",
     "quit"
   ]
 }

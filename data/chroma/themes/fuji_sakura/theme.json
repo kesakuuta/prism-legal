@@ -20,9 +20,9 @@
   "buttons": [
     "play",
     "skins",
-    "achievements",
+    "demos",
     "settings",
-    "marketplace",
+    "editor",
     "quit"
   ]
 }

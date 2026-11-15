@@ -895,7 +895,6 @@ void CMenus::TogglePrism()
 	m_PrismOpen = !m_PrismOpen;
 	if(m_PrismOpen)
 	{
-		m_ShowStart = false;
 		GameClient()->OnRelease();
 	}
 	else
@@ -1052,9 +1051,12 @@ void CMenus::Render()
 	}
 	else
 	{
-		if(!GameClient()->m_MenuBackground.Render())
+		if(!g_Config.m_ChromaCustomMenu || !m_ShowStart)
 		{
-			RenderBackground();
+			if(!GameClient()->m_MenuBackground.Render())
+			{
+				RenderBackground();
+			}
 		}
 		ms_ColorTabbarInactive = ms_ColorTabbarInactiveOutgame;
 		ms_ColorTabbarActive = ms_ColorTabbarActiveOutgame;
@@ -1185,7 +1187,8 @@ void CMenus::Render()
 		break;
 	}
 
-	Ui()->RenderPopupMenus();
+	if(!m_PrismOpen)
+		Ui()->RenderPopupMenus();
 
 	// Prevent UI elements from being hovered while a key reader is active
 	if(GameClient()->m_KeyBinder.IsActive())
@@ -2350,8 +2353,6 @@ bool CMenus::OnInput(const IInput::CEvent &Event)
 {
 	if((Event.m_Flags & IInput::FLAG_PRESS) && Event.m_Key == KEY_INSERT)
 	{
-		if(m_ShowStart)
-			m_ShowStart = false;
 		TogglePrism();
 		return true;
 	}

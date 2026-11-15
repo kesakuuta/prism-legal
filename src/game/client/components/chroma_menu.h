@@ -18,8 +18,8 @@ public:
 		ACTION_PLAY = 0,
 		ACTION_SETTINGS,
 		ACTION_SKINS,
-		ACTION_ACHIEVEMENTS,
-		ACTION_MARKETPLACE,
+		ACTION_DEMOS,
+		ACTION_EDITOR,
 		ACTION_SERVER,
 		ACTION_QUIT,
 		ACTION_UNKNOWN,
@@ -54,10 +54,20 @@ public:
 		std::vector<SThemeButton> m_vButtons;
 	};
 
+	struct SDiscoveredTheme
+	{
+		std::string m_Name;
+		std::string m_Path;
+	};
+
 	static bool LoadTheme(class IStorage *pStorage, const char *pFilePath, SMenuTheme &Theme);
 	static void Render(CGameClient *pGameClient, CUIRect MainView);
 	static void ApplyPreset(int Preset);
 	static void Reset();
+	static void ScanThemes(class IStorage *pStorage);
+	static int GetDiscoveredThemeCount();
+	static const SDiscoveredTheme *GetDiscoveredTheme(int Index);
+	static void ApplyThemePath(const char *pPath);
 };
 
 #endif // GAME_CLIENT_COMPONENTS_CHROMA_MENU_H
