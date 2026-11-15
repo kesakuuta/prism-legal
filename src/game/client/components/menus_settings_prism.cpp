@@ -750,10 +750,14 @@ void CMenus::RenderSettingsPrismTab(CUIRect MainView)
 		Right.HSplitTop(5.0f, nullptr, &Right);
 
 		Right.HSplitTop(20.0f, &Button, &Right);
-		const char *apThemes[] = {"Theme: Dark", "Theme: Light", "Theme: Cyberpunk", "Theme: Lavender", "Theme: Crimson"};
+		static int s_ThemeIdx = 0;
+		const char *apThemes[] = {"Theme: Orange Graphite", "Theme: Glacier", "Theme: Violet"};
 		static CButtonContainer s_ThemeBtn;
-		if(DoButton_Menu(&s_ThemeBtn, apThemes[std::clamp(g_Config.m_PrismTheme, 0, 4)], 0, &Button, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.35f))
-			g_Config.m_PrismTheme = (g_Config.m_PrismTheme + 1) % 5;
+		if(DoButton_Menu(&s_ThemeBtn, apThemes[std::clamp(s_ThemeIdx, 0, 2)], 0, &Button, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.35f))
+		{
+			s_ThemeIdx = (s_ThemeIdx + 1) % 3;
+			PrismUi::ApplyTheme(g_Config, s_ThemeIdx);
+		}
 
 		Right.HSplitTop(5.0f, nullptr, &Right);
 		Right.HSplitTop(20.0f, &Button, &Right);
