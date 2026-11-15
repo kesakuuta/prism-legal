@@ -1926,7 +1926,7 @@ void CHud::RenderRecord()
 
 void CHud::RenderPrismModules()
 {
-	if(!g_Config.m_PrismHudEnabled || Client()->State() != IClient::STATE_ONLINE)
+	if(!g_Config.m_PrismHudEnabled || (Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK))
 		return;
 	const float Opacity = std::clamp(g_Config.m_PrismHudOpacity, 20, 100) / 100.0f;
 	struct SModule
@@ -1977,26 +1977,58 @@ void CHud::RenderPrismModules()
 
 		switch(Module)
 		{
+		case PrismQol::HUD_HOTKEYS:
+			Text(0, "Prism Hotkeys:", true);
+			Text(1, "ClickGUI: [Insert]");
+			break;
 		case PrismQol::HUD_IDENTITY:
-			Text(0, "PRISM  /  0.3.0", true);
+			Text(0, "PRISM  /  Legit Edition", true);
 			break;
 		case PrismQol::HUD_PERFORMANCE:
 		{
 			char aPerf[64];
 			const int FramesPerSecond = round_to_int(1.0f / Client()->FrameTimeAverage());
-			str_format(aPerf, sizeof(aPerf), "FPS: %d", FramesPerSecond);
+			int Ping = 0;
+			if(Client()->Snap()->m_pLocalInfo)
+				Ping = Client()->Snap()->m_pLocalInfo->m_Latency;
+			str_format(aPerf, sizeof(aPerf), "FPS: %d  PING: %d ms", FramesPerSecond, Ping);
 			Text(0, aPerf, true);
 			break;
 		}
+		case PrismQol::HUD_DUMMY:
+		{
+			char aDummy[64];
+			bool DummyConnected = Client()->DummyConnected();
+			str_format(aDummy, sizeof(aDummy), "Dummy: %s", DummyConnected ? "Connected" : "Offline");
+			Text(0, aDummy, DummyConnected);
+			break;
+		}
+		case PrismQol::HUD_INPUT:
+		{
+			char aInp[64];
+			const auto &InputData = GameClient()->m_Controls.m_aInputData[g_Config.m_ClDummy];
+			str_format(aInp, sizeof(aInp), "[%s] J:[%s] F:[%s] H:[%s]",
+				InputData.m_Direction < 0 ? "A" : (InputData.m_Direction > 0 ? "D" : "-"),
+				InputData.m_Jump ? "1" : "0",
+				(InputData.m_Fire & 1) ? "1" : "0",
+				InputData.m_Hook ? "1" : "0");
+			Text(0, "Input Monitor:", true);
+			Text(1, aInp, false);
+			break;
+		}
 		case PrismQol::HUD_EFFECTS:
+		{
 			Text(0, "Cosmetic Effects:", true);
 			int r = 1;
 			if(g_Config.m_PrismHatEnabled) Text(r++, "Chinese Hat");
-			if(g_Config.m_PrismLocalOutline || g_Config.m_PrismOtherOutline) Text(r++, "Tee Outlines");
+			if(g_Config.m_TcRainbowTees) Text(r++, "Rainbow Tees");
+			if(g_Config.m_TcRainbowHook || g_Config.m_PrismLocalHook) Text(r++, "Rainbow Hook");
+			if(g_Config.m_TcRainbowWeapon) Text(r++, "Rainbow Weapon");
+			if(g_Config.m_TcTeeTrail || g_Config.m_PrismTrailLocal) Text(r++, "Movement Trails");
 			if(g_Config.m_PrismLocalGlow || g_Config.m_PrismOtherGlow) Text(r++, "Tee Glow");
-			if(g_Config.m_PrismHookEffect) Text(r++, "Hook Effects");
-			if(g_Config.m_PrismTrail) Text(r++, "Player Trails");
+			if(r == 1) Text(r++, "None");
 			break;
+		}
 		}
 	}
 }

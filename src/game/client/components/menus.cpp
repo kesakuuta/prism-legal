@@ -893,13 +893,18 @@ void CMenus::ConTogglePrism(IConsole::IResult *pResult, void *pUserData)
 void CMenus::TogglePrism()
 {
 	m_PrismOpen = !m_PrismOpen;
-	if(!m_PrismOpen)
+	if(m_PrismOpen)
+	{
+		m_ShowStart = false;
+		GameClient()->OnRelease();
+	}
+	else
+	{
 		Ui()->ClosePopupMenus();
+	}
 	Ui()->SetActiveItem(nullptr);
 	Ui()->SetHotItem(nullptr);
 	Ui()->ClearHotkeys();
-	if(m_PrismOpen)
-		GameClient()->OnRelease();
 }
 
 void CMenus::ConchainBackgroundEntities(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData)
@@ -2294,11 +2299,6 @@ void CMenus::PopupConfirmDemoReplaceVideo()
 
 void CMenus::SetActive(bool Active)
 {
-	if(Active && m_PrismOpen)
-	{
-		m_PrismOpen = false;
-		m_PrismTransition = 0.0f;
-	}
 	if(Active != m_MenuActive)
 	{
 		Ui()->SetHotItem(nullptr);
@@ -2348,8 +2348,10 @@ bool CMenus::OnCursorMove(float x, float y, IInput::ECursorType CursorType)
 
 bool CMenus::OnInput(const IInput::CEvent &Event)
 {
-	if(m_Popup == POPUP_NONE && (Event.m_Flags & IInput::FLAG_PRESS) && Event.m_Key == KEY_INSERT)
+	if((Event.m_Flags & IInput::FLAG_PRESS) && Event.m_Key == KEY_INSERT)
 	{
+		if(m_ShowStart)
+			m_ShowStart = false;
 		TogglePrism();
 		return true;
 	}

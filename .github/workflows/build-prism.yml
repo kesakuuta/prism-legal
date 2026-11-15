@@ -54,7 +54,7 @@ jobs:
           cmake -S . -B build -A x64 `
             -DCMAKE_BUILD_TYPE=Release `
             -DCLIENT=ON `
-            -DSERVER=OFF `
+            -DSERVER=ON `
             -DTOOLS=OFF `
             -DVULKAN=OFF `
             -DVIDEORECORDER=OFF `
@@ -64,8 +64,8 @@ jobs:
             -DDISCORD=OFF `
             -DCLIENT_EXECUTABLE=Prism
 
-      - name: Build Prism Client
-        run: cmake --build build --config Release --target game-client --parallel
+      - name: Build Prism Client & Server
+        run: cmake --build build --config Release --target game-client game-server --parallel
 
       - name: Package Windows Distribution
         shell: pwsh
@@ -82,10 +82,22 @@ jobs:
           }
           if ($exe) {
             Copy-Item $exe.FullName dist/Prism/Prism.exe -Force
-            Write-Host "Found executable: $($exe.FullName)"
+            Write-Host "Found client executable: $($exe.FullName)"
           } else {
             Write-Error "Could not find built client executable!"
             exit 1
+          }
+
+          # Find and copy built server executable
+          $serverExe = Get-ChildItem -Path build -Filter "DDNet-Server.exe" -Recurse -File | Select-Object -First 1
+          if (-not $serverExe) {
+            $serverExe = Get-ChildItem -Path build -Filter "game-server.exe" -Recurse -File | Select-Object -First 1
+          }
+          if ($serverExe) {
+            Copy-Item $serverExe.FullName dist/Prism/DDNet-Server.exe -Force
+            Write-Host "Found server executable: $($serverExe.FullName)"
+          } else {
+            Write-Warning "Could not find built server executable!"
           }
 
           # Copy DLLs from ddnet-libs and build output
@@ -168,7 +180,7 @@ jobs:
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCLIENT=ON \
-            -DSERVER=OFF \
+            -DSERVER=ON \
             -DTOOLS=OFF \
             -DVULKAN=OFF \
             -DVIDEORECORDER=OFF \
@@ -178,8 +190,8 @@ jobs:
             -DDISCORD=OFF \
             -DCLIENT_EXECUTABLE=Prism
 
-      - name: Build Prism Client
-        run: cmake --build build --config Release --target game-client --parallel
+      - name: Build Prism Client & Server
+        run: cmake --build build --config Release --target game-client game-server --parallel
 
       - name: Package Linux Distribution
         run: |
@@ -192,6 +204,12 @@ jobs:
           else
             echo "ERROR: Client binary not found!"
             exit 1
+          fi
+          SERVER_EXE=$(find build -maxdepth 3 -type f \( -name "DDNet-Server" -o -name "game-server" \) | grep -v "\.dir" | head -n 1)
+          if [ -n "$SERVER_EXE" ]; then
+            cp "$SERVER_EXE" dist/Prism/DDNet-Server
+            chmod +x dist/Prism/DDNet-Server
+            echo "Found server binary: $SERVER_EXE"
           fi
           cp -r data dist/Prism/
           [ -f storage.cfg ] && cp storage.cfg dist/Prism/

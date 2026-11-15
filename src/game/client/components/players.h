@@ -7,9 +7,19 @@
 #include <game/client/component.h>
 #include <game/client/render.h>
 
+#include <vector>
+
 class CPlayers : public CComponent
 {
 	friend class CGhost;
+
+	struct STrailPoint
+	{
+		vec2 m_Pos;
+		float m_Time;
+	};
+	std::vector<STrailPoint> m_aTrailHistory[MAX_CLIENTS];
+	void RenderTrails(int ClientId, const CTeeRenderInfo *pInfo, float Alpha);
 
 	void RenderHand6(const CTeeRenderInfo *pInfo, vec2 HandPos, float HandAngle, float Alpha);
 	void RenderHand7(const CTeeRenderInfo *pInfo, vec2 HandPos, float HandAngle, float Alpha);
@@ -54,6 +64,7 @@ public:
 
 	int Sizeof() const override { return sizeof(*this); }
 	void OnInit() override;
+	void OnReset() override;
 	void OnRender() override;
 
 	const std::shared_ptr<CManagedTeeRenderInfo> &NinjaTeeRenderInfo() const { return m_pNinjaTeeRenderInfo; }

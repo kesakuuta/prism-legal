@@ -534,11 +534,24 @@ void CPlayers::RenderHook(
 	float d = distance(Pos, HookPos);
 	vec2 Dir = normalize(Pos - HookPos);
 
+	bool Local = (ClientId == GameClient()->m_Snap.m_LocalClientId || (GameClient()->PredictDummy() && ClientId == !g_Config.m_ClDummy));
+	ColorRGBA HookColor(1.0f, 1.0f, 1.0f, Alpha);
+	if(g_Config.m_TcRainbowHook && (Local || g_Config.m_TcRainbowOthers))
+	{
+		float RainbowSpeed = std::max(10, g_Config.m_TcRainbowSpeed) / 100.0f;
+		float HookHue = std::fmod(Client()->LocalTime() * RainbowSpeed * 0.3f + (ClientId >= 0 ? ClientId : 0) * 0.1f, 1.0f);
+		HookColor = color_cast<ColorRGBA>(ColorHSLA(HookHue, 1.0f, 0.55f)).WithAlpha(Alpha);
+	}
+	else if(Local && g_Config.m_PrismLocalHook)
+	{
+		HookColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_PrismThemeAccent)).WithAlpha(Alpha);
+	}
+
 	Graphics()->TextureSet(GameClient()->m_GameSkin.m_SpriteHookHead);
 	Graphics()->QuadsSetRotation(angle(Dir) + pi);
 	// render head
 	int QuadOffset = NUM_WEAPONS * 2 + 2;
-	Graphics()->SetColor(1.0f, 1.0f, 1.0f, Alpha);
+	Graphics()->SetColor(HookColor.r, HookColor.g, HookColor.b, HookColor.a);
 	Graphics()->RenderQuadContainerAsSprite(m_WeaponEmoteQuadContainerIndex, QuadOffset, HookPos.x, HookPos.y);
 
 	// render chain
@@ -689,7 +702,17 @@ void CPlayers::RenderPlayer(
 	{
 		if(!(RenderInfo.m_TeeRenderFlags & TEE_NO_WEAPON))
 		{
-			Graphics()->SetColor(1.0f, 1.0f, 1.0f, Alpha);
+			if(g_Config.m_TcRainbowWeapon && (Local || g_Config.m_TcRainbowOthers))
+			{
+				float RainbowSpeed = std::max(10, g_Config.m_TcRainbowSpeed) / 100.0f;
+				float WeaponHue = std::fmod(Client()->LocalTime() * RainbowSpeed * 0.35f + (ClientId >= 0 ? ClientId : 0) * 0.12f, 1.0f);
+				ColorRGBA WeapCol = color_cast<ColorRGBA>(ColorHSLA(WeaponHue, 1.0f, 0.6f)).WithAlpha(Alpha);
+				Graphics()->SetColor(WeapCol.r, WeapCol.g, WeapCol.b, WeapCol.a);
+			}
+			else
+			{
+				Graphics()->SetColor(1.0f, 1.0f, 1.0f, Alpha);
+			}
 
 			// normal weapons
 			int CurrentWeapon = std::clamp(Player.m_Weapon, 0, NUM_WEAPONS - 1);
@@ -868,6 +891,48 @@ void CPlayers::RenderPlayer(
 	float TeeAnimScale, TeeBaseSize;
 	CRenderTools::GetRenderTeeAnimScaleAndBaseSize(&RenderInfo, TeeAnimScale, TeeBaseSize);
 	vec2 BodyPos = Position + vec2(State.GetBody()->m_X, State.GetBody()->m_Y) * TeeAnimScale;
+
+	// Prism Chinese Conical Hat (斗笠)
+	if(g_Config.m_PrismHatEnabled)
+	{
+		bool RenderHat = Local;
+		if(GameClient()->PredictDummy() && ClientId == !g_Config.m_ClDummy)
+			RenderHat = true;
+		if(g_Config.m_PrismHatOthers)
+			RenderHat = true;
+		if(RenderHat)
+		{
+			RenderTools()->RenderChineseHat(&State, &RenderInfo, Direction, Position, Alpha);
+		}
+	}
+
+	// Tee Glow Effect
+	if((Local && g_Config.m_PrismLocalGlow) || (!Local && g_Config.m_PrismOtherGlow))
+	{
+		GameClient()->m_Effects.PowerupShine(BodyPos, vec2(36.0f, 36.0f), 0.5f * Alpha);
+	}
+
+	// Movement Trails
+	if((g_Config.m_TcTeeTrail || g_Config.m_PrismTrailLocal) && (Local || g_Config.m_TcTeeTrailOthers))
+	{
+		if(ClientId >= 0 && ClientId < MAX_CLIENTS)
+		{
+			auto &History = m_aTrailHistory[ClientId];
+			float CurTime = Client()->LocalTime();
+			if(History.empty() || distance(History.back().m_Pos, Position) > 4.0f)
+			{
+				History.push_back({Position, CurTime});
+				int MaxPoints = std::clamp(g_Config.m_TcTeeTrailLength, 5, 100);
+				while((int)History.size() > MaxPoints)
+					History.erase(History.begin());
+			}
+			RenderTrails(ClientId, &RenderInfo, Alpha);
+		}
+	}
+	else if(ClientId >= 0 && ClientId < MAX_CLIENTS && !m_aTrailHistory[ClientId].empty())
+	{
+		m_aTrailHistory[ClientId].clear();
+	}
 	if(RenderInfo.m_TeeRenderFlags & TEE_EFFECT_FROZEN)
 	{
 		GameClient()->m_Effects.FreezingFlakes(BodyPos, vec2(32, 32), Alpha);
@@ -998,6 +1063,18 @@ void CPlayers::OnRender()
 				aRenderInfo[i].m_ColorFeet = ColorRGBA(1, 1, 1);
 			}
 		}
+
+		const bool IsLocal = (i == GameClient()->m_aLocalIds[0] || i == GameClient()->m_aLocalIds[1]);
+		if(g_Config.m_TcRainbowTees && (IsLocal || g_Config.m_TcRainbowOthers))
+		{
+			float RainbowSpeed = std::max(10, g_Config.m_TcRainbowSpeed) / 100.0f;
+			float TimeSec = Client()->LocalTime() * RainbowSpeed * 0.25f + i * 0.05f;
+			float BodyHue = std::fmod(TimeSec, 1.0f);
+			float FeetHue = std::fmod(TimeSec + 0.08f, 1.0f);
+			aRenderInfo[i].m_CustomColoredSkin = true;
+			aRenderInfo[i].m_ColorBody = color_cast<ColorRGBA>(ColorHSLA(BodyHue, 1.0f, 0.55f));
+			aRenderInfo[i].m_ColorFeet = color_cast<ColorRGBA>(ColorHSLA(FeetHue, 1.0f, 0.50f));
+		}
 	}
 
 	// get screen edges to avoid rendering offscreen
@@ -1042,6 +1119,8 @@ void CPlayers::OnRender()
 		if(!ScreenRect.Inside(Client.m_SpecChar))
 			continue;
 		RenderTools()->RenderTee(CAnimState::GetIdle(), &SpectatorTeeRenderInfo()->TeeRenderInfo(), EMOTE_BLINK, vec2(1, 0), Client.m_SpecChar, Alpha);
+		if(g_Config.m_PrismHatEnabled)
+			RenderTools()->RenderChineseHat(CAnimState::GetIdle(), &SpectatorTeeRenderInfo()->TeeRenderInfo(), vec2(1, 0), Client.m_SpecChar, Alpha);
 	}
 
 	// render everyone else's tee, then either our own or the tee we are spectating.
@@ -1161,4 +1240,48 @@ void CPlayers::OnInit()
 
 	CreateNinjaTeeRenderInfo();
 	CreateSpectatorTeeRenderInfo();
+}
+
+void CPlayers::OnReset()
+{
+	for(int i = 0; i < MAX_CLIENTS; ++i)
+		m_aTrailHistory[i].clear();
+}
+
+void CPlayers::RenderTrails(int ClientId, const CTeeRenderInfo *pInfo, float Alpha)
+{
+	if(ClientId < 0 || ClientId >= MAX_CLIENTS)
+		return;
+
+	auto &History = m_aTrailHistory[ClientId];
+	if(History.size() < 2)
+		return;
+
+	bool IsRainbow = (g_Config.m_TcTeeTrailColorMode == 3) || g_Config.m_TcRainbowTees;
+	ColorRGBA BaseColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_TcTeeTrailColor));
+	if(g_Config.m_TcTeeTrailColorMode == 2 && pInfo)
+		BaseColor = pInfo->m_ColorBody;
+
+	float TrailBaseAlpha = (std::clamp(g_Config.m_TcTeeTrailAlpha, 10, 100) / 100.0f) * Alpha;
+	float CurTime = Client()->LocalTime();
+
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	for(size_t i = 1; i < History.size(); ++i)
+	{
+		float Frac = (float)i / (float)History.size();
+		float PtAlpha = g_Config.m_TcTeeTrailFade ? (Frac * TrailBaseAlpha) : TrailBaseAlpha;
+
+		ColorRGBA SegmentCol = BaseColor;
+		if(IsRainbow)
+		{
+			float Hue = std::fmod(CurTime * 0.3f + Frac * 0.5f, 1.0f);
+			SegmentCol = color_cast<ColorRGBA>(ColorHSLA(Hue, 1.0f, 0.55f));
+		}
+		Graphics()->SetColor(SegmentCol.r, SegmentCol.g, SegmentCol.b, SegmentCol.a * PtAlpha);
+		IGraphics::CLineItem LineItem(History[i - 1].m_Pos.x, History[i - 1].m_Pos.y, History[i].m_Pos.x, History[i].m_Pos.y);
+		Graphics()->LinesDraw(&LineItem, 1);
+	}
+	Graphics()->LinesEnd();
+	Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
