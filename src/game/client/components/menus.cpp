@@ -828,30 +828,6 @@ void CMenus::OnInit()
 
 	m_RefreshButton.Init(Ui(), -1);
 	m_ConnectButton.Init(Ui(), -1);
-}
-
-void CMenus::OnConsoleInit()
-{
-	Console()->Register("toggle_prism", "", CFGFLAG_CLIENT, ConTogglePrism, this, "Toggle Prism ClickGUI menu");
-}
-
-void CMenus::ConTogglePrism(IConsole::IResult *pResult, void *pUserData)
-{
-	CMenus *pSelf = (CMenus *)pUserData;
-	pSelf->TogglePrism();
-}
-
-void CMenus::TogglePrism()
-{
-	m_PrismOpen = !m_PrismOpen;
-	if(!m_PrismOpen)
-		Ui()->ClosePopupMenus();
-	Ui()->SetActiveItem(nullptr);
-	Ui()->SetHotItem(nullptr);
-	Ui()->ClearHotkeys();
-	if(m_PrismOpen)
-		GameClient()->OnRelease();
-}
 
 	Console()->Chain("add_favorite", ConchainFavoritesUpdate, this);
 	Console()->Chain("remove_favorite", ConchainFavoritesUpdate, this);
@@ -901,6 +877,29 @@ void CMenus::TogglePrism()
 	m_DirectionQuadContainerIndex = Graphics()->CreateQuadContainer(false);
 	Graphics()->QuadContainerAddSprite(m_DirectionQuadContainerIndex, 0.f, 0.f, 22.f);
 	Graphics()->QuadContainerUpload(m_DirectionQuadContainerIndex);
+}
+
+void CMenus::OnConsoleInit()
+{
+	Console()->Register("toggle_prism", "", CFGFLAG_CLIENT, ConTogglePrism, this, "Toggle Prism ClickGUI menu");
+}
+
+void CMenus::ConTogglePrism(IConsole::IResult *pResult, void *pUserData)
+{
+	CMenus *pSelf = (CMenus *)pUserData;
+	pSelf->TogglePrism();
+}
+
+void CMenus::TogglePrism()
+{
+	m_PrismOpen = !m_PrismOpen;
+	if(!m_PrismOpen)
+		Ui()->ClosePopupMenus();
+	Ui()->SetActiveItem(nullptr);
+	Ui()->SetHotItem(nullptr);
+	Ui()->ClearHotkeys();
+	if(m_PrismOpen)
+		GameClient()->OnRelease();
 }
 
 void CMenus::ConchainBackgroundEntities(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData)
