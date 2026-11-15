@@ -1,0 +1,26 @@
+{
+  "theme_version": 1,
+  "name": "Chrome Heart Dark",
+  "background": "chroma/themes/chrome_dark/background.png",
+  "background_fill": [0.03, 0.03, 0.04, 1.0],
+  "greeting": "Hello, chrome haert",
+  "greeting_font_size": 28.0,
+  "greeting_color": [0.90, 0.90, 0.92, 1.0],
+  "greeting_x": 0.12,
+  "greeting_y": 0.36,
+  "menu_x": 0.12,
+  "menu_y": 0.44,
+  "button_font_size": 15.0,
+  "button_spacing": 20.0,
+  "text_color": [0.72, 0.74, 0.78, 1.0],
+  "hover_color": [1.0, 1.0, 1.0, 1.0],
+  "active_color": [0.45, 0.75, 1.0, 1.0],
+  "show_version": false,
+  "buttons": [
+    "play",
+    "settings",
+    "skins",
+    "achievements",
+    "quit"
+  ]
+}

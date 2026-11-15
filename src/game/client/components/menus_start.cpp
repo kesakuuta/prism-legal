@@ -1,6 +1,7 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "menus_start.h"
+#include "chroma_menu.h"
 
 #include <engine/client/updater.h>
 #include <engine/font_icons.h>
@@ -23,6 +24,12 @@
 
 void CMenusStart::RenderStartMenu(CUIRect MainView)
 {
+	if(g_Config.m_ChromaCustomMenu)
+	{
+		CChromaMenu::Render(GameClient(), MainView);
+		return;
+	}
+
 	GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_START);
 
 	// render logo

@@ -637,11 +637,12 @@ void CRenderTools::RenderChineseHat(const CAnimState *pAnim, const CTeeRenderInf
 	{
 		const auto &Facet = Mesh.m_aFacets[i];
 		Graphics()->SetColor(Facet.m_Color.r, Facet.m_Color.g, Facet.m_Color.b, Facet.m_Color.a);
+		vec2 Mid = (vec2(Facet.m_Left.x, Facet.m_Left.y) + vec2(Facet.m_Right.x, Facet.m_Right.y)) * 0.5f;
 		IGraphics::CFreeformItem Tri(
 			Facet.m_Apex.x, Facet.m_Apex.y,
 			Facet.m_Left.x, Facet.m_Left.y,
 			Facet.m_Right.x, Facet.m_Right.y,
-			Facet.m_Apex.x, Facet.m_Apex.y);
+			Mid.x, Mid.y);
 		Graphics()->QuadsDrawFreeform(&Tri, 1);
 	}
 	Graphics()->QuadsEnd();

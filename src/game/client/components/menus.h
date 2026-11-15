@@ -589,7 +589,6 @@ protected:
 	void RenderSettingsCredits(CUIRect MainView);
 	void RenderSettingsTClient(CUIRect MainView);
 	void RenderSettingsPrism(CUIRect MainView);
-	void RenderSettingsPrismTab(CUIRect MainView);
 
 	// found in menus_settings_ddnet.cpp
 	void RenderSettingsDDNet(CUIRect MainView);
@@ -733,7 +732,6 @@ public:
 		SETTINGS_DDNET,
 		SETTINGS_ASSETS,
 		SETTINGS_TCLIENT,
-		SETTINGS_PRISM,
 		SETTINGS_CREDITS,
 
 		SETTINGS_LENGTH,

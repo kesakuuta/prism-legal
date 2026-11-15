@@ -2461,7 +2461,7 @@ void CMenus::OnRender()
 			Ui()->Update();
 			if(m_PrismOpen && !Ui()->IsPopupOpen() && Ui()->ConsumeHotkey(CUi::HOTKEY_TAB))
 			{
-				m_PrismCategory = (m_PrismCategory + 1) % 6;
+				m_PrismCategory = (m_PrismCategory + 1) % 5;
 				Ui()->SetActiveItem(nullptr);
 			}
 			RenderSettingsPrism(*Ui()->Screen());
@@ -2479,16 +2479,33 @@ void CMenus::OnRender()
 
 	Ui()->Update();
 
+	vec2 SavedMousePos = Ui()->MousePos();
+	unsigned SavedMouseButtons = Ui()->GetMouseButtons();
+	unsigned SavedLastMouseButtons = Ui()->GetLastMouseButtons();
+
+	if(m_PrismOpen)
+	{
+		// Shield background buttons from receiving clicks or hover while ClickGUI is open
+		Ui()->SetMousePos(vec2(-100000.0f, -100000.0f));
+		Ui()->SetMouseButtons(0, 0);
+	}
+
 	if(IsActive())
 		Ui()->DoBackButton();
 
 	Render();
 
+	if(m_PrismOpen)
+	{
+		Ui()->SetMousePos(SavedMousePos);
+		Ui()->SetMouseButtons(SavedMouseButtons, SavedLastMouseButtons);
+	}
+
 	if(m_PrismOpen || m_PrismTransition > 0.0f)
 	{
 		if(m_PrismOpen && !Ui()->IsPopupOpen() && Ui()->ConsumeHotkey(CUi::HOTKEY_TAB))
 		{
-			m_PrismCategory = (m_PrismCategory + 1) % 6;
+			m_PrismCategory = (m_PrismCategory + 1) % 5;
 			Ui()->SetActiveItem(nullptr);
 		}
 		RenderSettingsPrism(*Ui()->Screen());

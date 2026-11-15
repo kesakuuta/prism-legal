@@ -1025,12 +1025,26 @@ void CPlayers::RenderPlayer(
 		{
 			auto &History = m_aTrailHistory[ClientId];
 			float CurTime = Client()->LocalTime();
+			float dt = std::clamp(Client()->RenderFrameTime(), 0.001f, 0.1f);
 			if(History.empty() || distance(History.back().m_Pos, Position) > 3.0f)
 			{
 				History.push_back({Position, CurTime});
 				int MaxPoints = std::clamp(g_Config.m_TcTeeTrailLength, 5, 100);
 				while((int)History.size() > MaxPoints)
 					History.erase(History.begin());
+			}
+			else
+			{
+				// Standing still: retract trail into the Tee so it doesn't freeze in space
+				float RetractSpeed = 18.0f * dt;
+				for(auto &Pt : History)
+				{
+					Pt.m_Pos += (Position - Pt.m_Pos) * std::min(1.0f, RetractSpeed);
+				}
+				while(History.size() > 1 && distance(History.front().m_Pos, Position) < 5.0f)
+					History.erase(History.begin());
+				if(History.size() == 1 && distance(History.front().m_Pos, Position) < 1.5f)
+					History.clear();
 			}
 			RenderTrails(ClientId, &RenderInfo, Alpha);
 		}

@@ -1,5 +1,8 @@
-// Prism additions, distributed under the zlib license in license.txt.
+// chroma. additions, distributed under the zlib license in license.txt.
 #ifndef GAME_CLIENT_PRISM_VERSION_H
 #define GAME_CLIENT_PRISM_VERSION_H
-#define PRISM_VERSION "0.2.0"
+#define CHROMA_NAME "chroma."
+#define CHROMA_VERSION "1.0.4"
+#define PRISM_NAME CHROMA_NAME
+#define PRISM_VERSION CHROMA_VERSION
 #endif

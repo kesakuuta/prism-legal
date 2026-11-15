@@ -1983,11 +1983,11 @@ void CHud::RenderPrismModules()
 		switch(Module)
 		{
 		case PrismQol::HUD_HOTKEYS:
-			Text(0, "Prism Hotkeys:", true);
+			Text(0, "chroma. Hotkeys:", true);
 			Text(1, "ClickGUI: [Insert]");
 			break;
 		case PrismQol::HUD_IDENTITY:
-			Text(0, "PRISM  /  Legit Edition", true);
+			Text(0, "chroma.  /  Legit Edition", true);
 			break;
 		case PrismQol::HUD_PERFORMANCE:
 		{

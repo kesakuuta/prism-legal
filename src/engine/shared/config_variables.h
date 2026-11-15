@@ -813,6 +813,10 @@ MACRO_CONFIG_INT(ClVideoRecorderFPS, cl_video_recorder_fps, 60, 1, 1000, CFGFLAG
 #include "prism_hat_variables.h"
 MACRO_CONFIG_INT(PrismPreset, prism_preset, 0, 0, 4, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Prism preset identity: 0 Default, 1 Clean, 2 Competitive, 3 Cinematic, 4 Custom")
 MACRO_CONFIG_INT(PrismOverlay, prism_overlay, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show FPS and average frame time")
+MACRO_CONFIG_INT(ChromaLanguage, chroma_language, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "chroma. language: 0 English, 1 Russian")
+MACRO_CONFIG_INT(ChromaCustomMenu, chroma_custom_menu, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Enable chroma. custom JSON main menu theme")
+MACRO_CONFIG_INT(ChromaMenuTheme, chroma_menu_theme, 1, 0, 4, CFGFLAG_CLIENT | CFGFLAG_SAVE, "chroma. menu theme preset: 0 DDNet, 1 Chrome Heart Dark, 2 Chrome Heart Sword, 3 Fuji Sakura, 4 Custom")
+MACRO_CONFIG_STR(ChromaThemePath, chroma_theme_path, 256, "chroma/themes/chrome_dark/theme.json", CFGFLAG_CLIENT | CFGFLAG_SAVE, "Path to active chroma. theme.json")
 
 // T-Client settings
 #include "config_variables_tclient.h"

@@ -549,6 +549,7 @@ public:
 	void DebugRender(float X, float Y);
 
 	vec2 MousePos() const { return m_MousePos; }
+	void SetMousePos(vec2 Pos) { m_MousePos = Pos; }
 	float MouseX() const { return m_MousePos.x; }
 	float MouseY() const { return m_MousePos.y; }
 	vec2 MouseDelta() const { return m_MouseDelta; }
@@ -558,6 +559,9 @@ public:
 	vec2 UpdatedMouseDelta() const { return m_UpdatedMouseDelta; }
 	int MouseButton(int Index) const { return (m_MouseButtons >> Index) & 1; }
 	int MouseButtonClicked(int Index) const { return MouseButton(Index) && !((m_LastMouseButtons >> Index) & 1); }
+	unsigned GetMouseButtons() const { return m_MouseButtons; }
+	unsigned GetLastMouseButtons() const { return m_LastMouseButtons; }
+	void SetMouseButtons(unsigned Buttons, unsigned LastButtons) { m_MouseButtons = Buttons; m_LastMouseButtons = LastButtons; }
 	bool CheckMouseLock()
 	{
 		if(m_MouseLock && ActiveItem() != m_pMouseLockId)

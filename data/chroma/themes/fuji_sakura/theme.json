@@ -1,0 +1,28 @@
+{
+  "theme_version": 1,
+  "name": "Fuji Sakura",
+  "background": "chroma/themes/fuji_sakura/background.png",
+  "background_fill": [0.10, 0.12, 0.15, 1.0],
+  "greeting": "",
+  "greeting_font_size": 0.0,
+  "greeting_color": [1.0, 1.0, 1.0, 1.0],
+  "greeting_x": 0.06,
+  "greeting_y": 0.18,
+  "menu_x": 0.06,
+  "menu_y": 0.22,
+  "button_font_size": 17.0,
+  "button_spacing": 22.0,
+  "text_color": [0.95, 0.95, 0.98, 1.0],
+  "hover_color": [1.0, 0.85, 0.90, 1.0],
+  "active_color": [1.0, 0.55, 0.70, 1.0],
+  "show_version": true,
+  "watermark_text": "chroma. | DDNet 20.3",
+  "buttons": [
+    "play",
+    "skins",
+    "achievements",
+    "settings",
+    "marketplace",
+    "quit"
+  ]
+}

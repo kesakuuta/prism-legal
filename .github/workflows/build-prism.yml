@@ -1,4 +1,4 @@
-name: Build Prism Client
+name: Build chroma. Client
 
 on:
   push:
@@ -64,7 +64,7 @@ jobs:
             -DDISCORD=OFF `
             -DCLIENT_EXECUTABLE=Prism
 
-      - name: Build Prism Client & Server
+      - name: Build chroma. Client & Server
         run: cmake --build build --config Release --target game-client game-server --parallel
 
       - name: Package Windows Distribution
@@ -119,22 +119,22 @@ jobs:
           if (Test-Path storage.cfg) { Copy-Item storage.cfg dist/Prism/ }
           if (Test-Path license.txt) { Copy-Item license.txt dist/Prism/ }
 
-          # Compress to zip
-          Compress-Archive -Path dist/Prism/* -DestinationPath dist/Prism-Windows-x64.zip -Force
-          Write-Host "Created dist/Prism-Windows-x64.zip successfully!"
+          # Compress to zip for GitHub Releases
+          Compress-Archive -Path dist/Prism/* -DestinationPath dist/chroma.-Windows-x64.zip -Force
+          Write-Host "Created dist/chroma.-Windows-x64.zip successfully!"
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Prism-Windows-x64
-          path: dist/Prism-Windows-x64.zip
+          name: chroma.-Windows-x64
+          path: dist/Prism
           if-no-files-found: error
 
       - name: Publish Windows Release Asset
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Prism-Windows-x64.zip
+          files: dist/chroma.-Windows-x64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -190,7 +190,7 @@ jobs:
             -DDISCORD=OFF \
             -DCLIENT_EXECUTABLE=Prism
 
-      - name: Build Prism Client & Server
+      - name: Build chroma. Client & Server
         run: cmake --build build --config Release --target game-client game-server --parallel
 
       - name: Package Linux Distribution
@@ -215,20 +215,20 @@ jobs:
           [ -f storage.cfg ] && cp storage.cfg dist/Prism/
           [ -f license.txt ] && cp license.txt dist/Prism/
           cd dist
-          tar -czvf Prism-Linux-x86_64.tar.gz Prism
+          tar -czvf chroma.-Linux-x86_64.tar.gz Prism
           cd ..
 
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Prism-Linux-x86_64
-          path: dist/Prism-Linux-x86_64.tar.gz
+          name: chroma.-Linux-x86_64
+          path: dist/Prism
           if-no-files-found: error
 
       - name: Publish Linux Release Asset
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Prism-Linux-x86_64.tar.gz
+          files: dist/chroma.-Linux-x86_64.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

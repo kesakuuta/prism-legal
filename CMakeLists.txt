@@ -2733,6 +2733,8 @@ if(CLIENT)
     components/menus_settings_sound.cpp
     components/menus_settings_tee.cpp
     components/menus_settings_tee7.cpp
+    components/chroma_menu.cpp
+    components/chroma_menu.h
     components/menus_start.cpp
     components/menus_start.h
     components/motd.cpp

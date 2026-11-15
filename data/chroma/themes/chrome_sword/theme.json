@@ -1,0 +1,26 @@
+{
+  "theme_version": 1,
+  "name": "Chrome Heart Sword",
+  "background": "chroma/themes/chrome_sword/background.png",
+  "background_fill": [0.68, 0.68, 0.68, 1.0],
+  "greeting": "Hello, chrome haert",
+  "greeting_font_size": 28.0,
+  "greeting_color": [0.08, 0.08, 0.08, 1.0],
+  "greeting_x": 0.10,
+  "greeting_y": 0.36,
+  "menu_x": 0.10,
+  "menu_y": 0.44,
+  "button_font_size": 14.0,
+  "button_spacing": 18.0,
+  "text_color": [0.12, 0.12, 0.12, 1.0],
+  "hover_color": [0.38, 0.38, 0.38, 1.0],
+  "active_color": [0.0, 0.0, 0.0, 1.0],
+  "show_version": false,
+  "buttons": [
+    "play",
+    "settings",
+    "skins",
+    "achievements",
+    "marketplace"
+  ]
+}
