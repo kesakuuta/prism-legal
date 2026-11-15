@@ -206,6 +206,7 @@ void CMenus::RenderSettingsTee(CUIRect MainView)
 		const float InteractionDistance = 20.0f;
 		const vec2 TeeDirection = Distance < InteractionDistance ? normalize(vec2(DeltaPosition.x, std::max(DeltaPosition.y, 0.5f))) : normalize(DeltaPosition);
 		const int TeeEmote = Distance < InteractionDistance ? EMOTE_HAPPY : *pEmote;
+		RenderTools()->RenderPrismTee(CAnimState::GetIdle(), &OwnSkinInfo, TeeDirection, TeeRenderPos, 1.0f, true);
 		RenderTools()->RenderTee(CAnimState::GetIdle(), &OwnSkinInfo, TeeEmote, TeeDirection, TeeRenderPos);
 		if(g_Config.m_PrismHatEnabled)
 			RenderTools()->RenderChineseHat(CAnimState::GetIdle(), &OwnSkinInfo, TeeDirection, TeeRenderPos);

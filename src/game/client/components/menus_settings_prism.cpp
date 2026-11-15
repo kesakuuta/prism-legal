@@ -33,7 +33,7 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
 	const PrismUi::STheme Theme(g_Config);
 	const float Opacity = g_Config.m_PrismPanelOpacity / 100.0f;
 	const float Scale = g_Config.m_PrismMenuScale / 100.0f;
-	const float BackdropDarkness = g_Config.m_PrismHudEdit && m_PrismCategory == 1 ? 0.28f : g_Config.m_PrismGlassDarkness / 100.0f;
+	const float BackdropDarkness = g_Config.m_PrismHudEdit && (m_PrismCategory == 2 || m_PrismCategory == 3) ? 0.28f : g_Config.m_PrismGlassDarkness / 100.0f;
 	Screen.Draw(ColorRGBA(0.025f, 0.029f, 0.034f, BackdropDarkness * Fade), IGraphics::CORNER_NONE, 0.0f);
 
 	CUIRect Panel = Screen;
@@ -98,7 +98,7 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
 	const float Tint = g_Config.m_PrismGlassTint / 100.0f;
 	Sheen.Draw4(Theme.m_Accent.WithAlpha(Tint * 0.20f * Fade), Theme.m_Accent.WithAlpha(Tint * 0.07f * Fade),
 		Theme.m_Panel.WithAlpha(0.02f * Fade), Theme.m_Panel.WithAlpha(0.02f * Fade), IGraphics::CORNER_T, 11.0f);
-	if(m_PrismOpen && m_PrismCategory == 1 && g_Config.m_PrismHudEdit && g_Config.m_PrismHudEnabled)
+	if(m_PrismOpen && (m_PrismCategory == 2 || m_PrismCategory == 3) && g_Config.m_PrismHudEdit && g_Config.m_PrismHudEnabled)
 	{
 		int *apEnabled[] = {&g_Config.m_PrismHudHotkeys, &g_Config.m_PrismHudIdentity, &g_Config.m_PrismHudPerformance,
 			&g_Config.m_PrismHudDummy, &g_Config.m_PrismHudStaff, &g_Config.m_PrismHudInput, &g_Config.m_PrismHudEffects};
@@ -301,7 +301,7 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
 			Ui()->DoScrollbarOption(pValue, pValue, &Row, pLabel, Min, Max);
 		}
 	};
-	static CButtonContainer s_aColors[16];
+	static CButtonContainer s_aColors[64];
 	auto Color = [&](const char *pLabel, unsigned *pValue, int Index) {
 		CUIRect Row = NextRow(27.0f);
 		if(!Scroll.RectClipped(Row))
@@ -311,7 +311,7 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
 
     // Phase 3 navigation and editors. All controls edit saved DDNet configuration.
     // Existing visual presets affect visuals only; all QoL preferences are separate.
-    static CButtonContainer s_aActionButtons[32];
+    static CButtonContainer s_aActionButtons[64];
     auto Button = [&](const char *pText, int Id, const ColorRGBA &Tint = ColorRGBA(0.37f, 0.47f, 0.58f, 0.25f)) {
         CUIRect Row = NextRow(29.0f);
         return !Scroll.RectClipped(Row) && DoButton_Menu(&s_aActionButtons[Id], pText, 0, &Row, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f, 0.41f, Tint);
@@ -414,13 +414,13 @@ case 0: // Visuals, including presets and all Tee/Hook adjustments
 		Label("Chinese Conical Hat   /   斗笠");
 		Toggle("Enable Chinese Hat", &g_Config.m_PrismHatEnabled);
 		if(Button(g_Config.m_PrismHatMode == 0 ? "Mode: Custom Static Color" :
-			g_Config.m_PrismHatMode == 1 ? "Mode: Rainbow Gradient Wave" : "Mode: Shimmering Monochrome Luster", 50))
+			g_Config.m_PrismHatMode == 1 ? "Mode: Rainbow Gradient Wave" : "Mode: Shimmering Monochrome Luster", 29))
 			g_Config.m_PrismHatMode = (g_Config.m_PrismHatMode + 1) % 3;
 
 		if(g_Config.m_PrismHatMode != 1)
-			Color("Hat base color", &g_Config.m_PrismHatColor, 51);
+			Color("Hat base color", &g_Config.m_PrismHatColor, 15);
 
-		Color("Rib lines color", &g_Config.m_PrismHatRibColor, 52);
+		Color("Rib lines color", &g_Config.m_PrismHatRibColor, 16);
 
 		Slider("Facet opacity (%)", &g_Config.m_PrismHatAlpha, 10, 100);
 		Slider("Rib lines opacity (%)", &g_Config.m_PrismHatRibAlpha, 10, 100);
@@ -629,7 +629,7 @@ void CMenus::RenderSettingsPrismTab(CUIRect MainView)
 {
 	Prism::Validate(g_Config);
 
-	CUIRect TopBar, Left, Right, Button, Label;
+	CUIRect TopBar, Left, Right;
 	MainView.HSplitTop(35.0f, &TopBar, &MainView);
 	MainView.HSplitTop(10.0f, nullptr, &MainView);
 
@@ -647,134 +647,276 @@ void CMenus::RenderSettingsPrismTab(CUIRect MainView)
 
 	MainView.VSplitMid(&Left, &Right, 20.0f);
 
-	// Left Column: Chinese Conical Hat & Visuals
+	static CScrollRegion s_LeftScroll, s_RightScroll;
+	s_LeftScroll.Begin(&Left);
+	s_RightScroll.Begin(&Right);
+
+	auto LeftRow = [&](float Height = 22.0f, float Spacing = 4.0f) {
+		CUIRect Row;
+		Left.HSplitTop(Height, &Row, &Left);
+		s_LeftScroll.AddRect(Row);
+		Left.HSplitTop(Spacing, nullptr, &Left);
+		return Row;
+	};
+
+	auto RightRow = [&](float Height = 22.0f, float Spacing = 4.0f) {
+		CUIRect Row;
+		Right.HSplitTop(Height, &Row, &Right);
+		s_RightScroll.AddRect(Row);
+		Right.HSplitTop(Spacing, nullptr, &Right);
+		return Row;
+	};
+
+	auto LeftCheckBox = [&](int *pVal, const char *pText) {
+		CUIRect Row = LeftRow(22.0f, 4.0f);
+		if(!s_LeftScroll.RectClipped(Row))
+		{
+			if(DoButton_CheckBox(pVal, pText, *pVal, &Row))
+				*pVal ^= 1;
+		}
+	};
+
+	auto RightCheckBox = [&](int *pVal, const char *pText) {
+		CUIRect Row = RightRow(22.0f, 4.0f);
+		if(!s_RightScroll.RectClipped(Row))
+		{
+			if(DoButton_CheckBox(pVal, pText, *pVal, &Row))
+				*pVal ^= 1;
+		}
+	};
+
+	auto LeftSlider = [&](int *pVal, const char *pText, int Min, int Max, const char *pSuffix = "%") {
+		CUIRect Row = LeftRow(22.0f, 4.0f);
+		if(!s_LeftScroll.RectClipped(Row))
+			Ui()->DoScrollbarOption(pVal, pVal, &Row, pText, Min, Max, &CUi::ms_LinearScrollbarScale, 0u, pSuffix);
+	};
+
+	auto RightSlider = [&](int *pVal, const char *pText, int Min, int Max, const char *pSuffix = "%") {
+		CUIRect Row = RightRow(22.0f, 4.0f);
+		if(!s_RightScroll.RectClipped(Row))
+			Ui()->DoScrollbarOption(pVal, pVal, &Row, pText, Min, Max, &CUi::ms_LinearScrollbarScale, 0u, pSuffix);
+	};
+
+	auto LeftColor = [&](CButtonContainer *pReset, const char *pText, unsigned *pVal, ColorRGBA DefCol, bool Alpha = false) {
+		CUIRect Row = LeftRow(24.0f, 4.0f);
+		if(!s_LeftScroll.RectClipped(Row))
+			DoLine_ColorPicker(pReset, 24.0f, 12.0f, 0.0f, &Row, pText, pVal, DefCol, false, nullptr, Alpha);
+	};
+
+	auto RightColor = [&](CButtonContainer *pReset, const char *pText, unsigned *pVal, ColorRGBA DefCol, bool Alpha = false) {
+		CUIRect Row = RightRow(24.0f, 4.0f);
+		if(!s_RightScroll.RectClipped(Row))
+			DoLine_ColorPicker(pReset, 24.0f, 12.0f, 0.0f, &Row, pText, pVal, DefCol, false, nullptr, Alpha);
+	};
+
+	// ---------------- LEFT COLUMN: Interactive Preview + Chinese Hat + Visuals ----------------
 	{
-		// Chinese Hat Section
-		Left.HSplitTop(25.0f, &Label, &Left);
-		Ui()->DoLabel(&Label, Localize("Chinese Conical Hat (斗笠)"), 18.0f, TEXTALIGN_ML);
-		Left.HSplitTop(5.0f, nullptr, &Left);
+		// Live Interactive Tee Preview
+		CUIRect PreviewBox = LeftRow(115.0f, 10.0f);
+		if(!s_LeftScroll.RectClipped(PreviewBox))
+		{
+			PreviewBox.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.28f), IGraphics::CORNER_ALL, 8.0f);
+			const CSkin *pDefaultSkin = GameClient()->m_Skins.Find("default");
+			const CSkins::CSkinContainer *pOwnSkinContainer = GameClient()->m_Skins.FindContainerOrNullptr(g_Config.m_ClPlayerSkin[0] == '\0' ? "default" : g_Config.m_ClPlayerSkin);
+			CTeeRenderInfo OwnSkinInfo;
+			OwnSkinInfo.Apply(pOwnSkinContainer == nullptr || pOwnSkinContainer->Skin() == nullptr ? pDefaultSkin : pOwnSkinContainer->Skin().get());
+			OwnSkinInfo.ApplyColors(g_Config.m_ClPlayerUseCustomColor, g_Config.m_ClPlayerColorBody, g_Config.m_ClPlayerColorFeet);
+			OwnSkinInfo.m_Size = 56.0f;
 
-		Left.HSplitTop(20.0f, &Button, &Left);
-		if(DoButton_CheckBox(&g_Config.m_PrismHatEnabled, Localize("Enable Chinese Hat"), g_Config.m_PrismHatEnabled, &Button))
-			g_Config.m_PrismHatEnabled ^= 1;
+			vec2 OffsetToMid;
+			CRenderTools::GetRenderTeeOffsetToRenderedTee(CAnimState::GetIdle(), &OwnSkinInfo, OffsetToMid);
+			const vec2 TeePos = vec2(PreviewBox.x + PreviewBox.w / 2.0f, PreviewBox.y + PreviewBox.h / 2.0f + OffsetToMid.y);
+			const vec2 DeltaPos = Ui()->MousePos() - TeePos;
+			const float Dist = length(DeltaPos);
+			const vec2 TeeDir = Dist < 20.0f ? normalize(vec2(DeltaPos.x, std::max(DeltaPos.y, 0.5f))) : normalize(DeltaPos);
+			const int Emote = Dist < 20.0f ? EMOTE_HAPPY : EMOTE_NORMAL;
 
-		Left.HSplitTop(20.0f, &Button, &Left);
-		const char *apHatModes[] = {"Mode: Custom Static Color", "Mode: Rainbow Gradient Wave", "Mode: Shimmering Monochrome Luster"};
-		static CButtonContainer s_HatModeBtn;
-		if(DoButton_Menu(&s_HatModeBtn, apHatModes[std::clamp(g_Config.m_PrismHatMode, 0, 2)], 0, &Button, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.35f))
-			g_Config.m_PrismHatMode = (g_Config.m_PrismHatMode + 1) % 3;
+			RenderTools()->RenderPrismTee(CAnimState::GetIdle(), &OwnSkinInfo, TeeDir, TeePos, 1.0f, true);
+			RenderTools()->RenderTee(CAnimState::GetIdle(), &OwnSkinInfo, Emote, TeeDir, TeePos);
+			if(g_Config.m_PrismHatEnabled)
+				RenderTools()->RenderChineseHat(CAnimState::GetIdle(), &OwnSkinInfo, TeeDir, TeePos);
+		}
 
-		Left.HSplitTop(5.0f, nullptr, &Left);
-		Left.HSplitTop(20.0f, &Button, &Left);
-		Ui()->DoScrollbarOption(&g_Config.m_PrismHatAlpha, &g_Config.m_PrismHatAlpha, &Button, Localize("Facet opacity"), 10, 100, &CUi::ms_LinearScrollbarScale, 0u, "%");
+		// Chinese Conical Hat (斗笠)
+		CUIRect HatLabel = LeftRow(26.0f, 4.0f);
+		if(!s_LeftScroll.RectClipped(HatLabel))
+			Ui()->DoLabel(&HatLabel, Localize("Chinese Conical Hat (斗笠)"), 17.0f, TEXTALIGN_ML);
 
-		Left.HSplitTop(5.0f, nullptr, &Left);
-		Left.HSplitTop(20.0f, &Button, &Left);
-		Ui()->DoScrollbarOption(&g_Config.m_PrismHatRibAlpha, &g_Config.m_PrismHatRibAlpha, &Button, Localize("Rib lines opacity"), 10, 100, &CUi::ms_LinearScrollbarScale, 0u, "%");
+		LeftCheckBox(&g_Config.m_PrismHatEnabled, Localize("Enable Chinese Hat"));
 
-		Left.HSplitTop(5.0f, nullptr, &Left);
-		Left.HSplitTop(20.0f, &Button, &Left);
-		Ui()->DoScrollbarOption(&g_Config.m_PrismHatScale, &g_Config.m_PrismHatScale, &Button, Localize("Hat size scale"), 50, 200, &CUi::ms_LinearScrollbarScale, 0u, "%");
+		CUIRect ModeRow = LeftRow(24.0f, 4.0f);
+		if(!s_LeftScroll.RectClipped(ModeRow))
+		{
+			const char *apHatModes[] = {"Mode: Custom Static Color", "Mode: Rainbow Gradient Wave", "Mode: Shimmering Monochrome Luster"};
+			static CButtonContainer s_HatModeBtn;
+			if(DoButton_Menu(&s_HatModeBtn, apHatModes[std::clamp(g_Config.m_PrismHatMode, 0, 2)], 0, &ModeRow, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.35f))
+				g_Config.m_PrismHatMode = (g_Config.m_PrismHatMode + 1) % 3;
+		}
+
+		static CButtonContainer s_HatColorReset, s_HatRibColorReset;
+		if(g_Config.m_PrismHatMode != 1)
+			LeftColor(&s_HatColorReset, Localize("Hat base color"), &g_Config.m_PrismHatColor, ColorRGBA(0.95f, 0.82f, 0.55f, 1.0f));
+		LeftColor(&s_HatRibColorReset, Localize("Rib lines color"), &g_Config.m_PrismHatRibColor, ColorRGBA(0.15f, 0.12f, 0.08f, 1.0f));
+
+		LeftSlider(&g_Config.m_PrismHatAlpha, Localize("Facet opacity"), 10, 100);
+		LeftSlider(&g_Config.m_PrismHatRibAlpha, Localize("Rib lines opacity"), 10, 100);
+		LeftSlider(&g_Config.m_PrismHatScale, Localize("Hat size scale"), 50, 200);
+		LeftSlider(&g_Config.m_PrismHatOffsetY, Localize("Vertical offset"), -50, 50, " px");
 
 		if(g_Config.m_PrismHatMode != 0)
+			LeftSlider(&g_Config.m_PrismHatSpeed, Localize("Animation speed"), 10, 500);
+
+		LeftCheckBox(&g_Config.m_PrismHatTilt, Localize("Tilt with movement & aim"));
+		LeftCheckBox(&g_Config.m_PrismHatLocal, Localize("Show on local player"));
+		LeftCheckBox(&g_Config.m_PrismHatOthers, Localize("Show on other players"));
+
+		// Visuals & Cosmetic Effects
+		CUIRect VisLabel = LeftRow(26.0f, 4.0f);
+		if(!s_LeftScroll.RectClipped(VisLabel))
+			Ui()->DoLabel(&VisLabel, Localize("Visuals & Cosmetic Effects"), 17.0f, TEXTALIGN_ML);
+
+		static CButtonContainer s_LocOutlineReset, s_LocGlowReset, s_OthOutlineReset, s_OthGlowReset;
+		static CButtonContainer s_LocHookReset, s_OthHookReset, s_TrailReset, s_HighlightReset, s_HookPartReset;
+
+		LeftCheckBox(&g_Config.m_PrismLocalOutline, Localize("Local tee outline"));
+		LeftSlider(&g_Config.m_PrismLocalOutlineWidth, Localize("Local outline width"), 1, 8, " px");
+		LeftColor(&s_LocOutlineReset, Localize("Local outline color"), &g_Config.m_PrismLocalOutlineColor, ColorRGBA(0.35f, 0.70f, 1.0f, 1.0f));
+
+		LeftCheckBox(&g_Config.m_PrismLocalGlow, Localize("Local tee glow"));
+		LeftSlider(&g_Config.m_PrismLocalGlowIntensity, Localize("Local glow strength"), 0, 100);
+		LeftColor(&s_LocGlowReset, Localize("Local glow color"), &g_Config.m_PrismLocalGlowColor, ColorRGBA(0.35f, 0.70f, 1.0f, 1.0f));
+
+		LeftCheckBox(&g_Config.m_PrismOtherOutline, Localize("Other tees outline"));
+		LeftSlider(&g_Config.m_PrismOtherOutlineWidth, Localize("Other outline width"), 1, 8, " px");
+		LeftColor(&s_OthOutlineReset, Localize("Other outline color"), &g_Config.m_PrismOtherOutlineColor, ColorRGBA(1.0f, 0.40f, 0.40f, 1.0f));
+
+		LeftCheckBox(&g_Config.m_PrismOtherGlow, Localize("Other tees glow"));
+		LeftSlider(&g_Config.m_PrismOtherGlowIntensity, Localize("Other glow strength"), 0, 100);
+		LeftColor(&s_OthGlowReset, Localize("Other glow color"), &g_Config.m_PrismOtherGlowColor, ColorRGBA(1.0f, 0.40f, 0.40f, 1.0f));
+
+		LeftCheckBox(&g_Config.m_PrismLocalHook, Localize("Local hook custom color"));
+		LeftColor(&s_LocHookReset, Localize("Local hook color"), &g_Config.m_PrismLocalHookColor, ColorRGBA(0.40f, 0.85f, 1.0f, 1.0f));
+		LeftCheckBox(&g_Config.m_PrismLocalHookGlow, Localize("Local hook glow"));
+		LeftSlider(&g_Config.m_PrismLocalHookIntensity, Localize("Local hook glow intensity"), 0, 100);
+
+		LeftCheckBox(&g_Config.m_PrismOtherHook, Localize("Other hooks custom color"));
+		LeftColor(&s_OthHookReset, Localize("Other hook color"), &g_Config.m_PrismOtherHookColor, ColorRGBA(1.0f, 0.50f, 0.50f, 1.0f));
+		LeftCheckBox(&g_Config.m_PrismOtherHookGlow, Localize("Other hook glow"));
+		LeftSlider(&g_Config.m_PrismOtherHookIntensity, Localize("Other hook glow intensity"), 0, 100);
+
+		CUIRect PartBtnRow = LeftRow(24.0f, 4.0f);
+		if(!s_LeftScroll.RectClipped(PartBtnRow))
 		{
-			Left.HSplitTop(5.0f, nullptr, &Left);
-			Left.HSplitTop(20.0f, &Button, &Left);
-			Ui()->DoScrollbarOption(&g_Config.m_PrismHatSpeed, &g_Config.m_PrismHatSpeed, &Button, Localize("Animation speed"), 10, 500, &CUi::ms_LinearScrollbarScale, 0u, "%");
+			const char *apHookModes[] = {"Hook Particles: Off", "Hook Particles: Leaves", "Hook Particles: Sparkles", "Hook Particles: Hearts", "Hook Particles: Pulse"};
+			static CButtonContainer s_HookModeBtn;
+			if(DoButton_Menu(&s_HookModeBtn, apHookModes[std::clamp(g_Config.m_PrismHookEffect, 0, 4)], 0, &PartBtnRow, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.35f))
+				g_Config.m_PrismHookEffect = (g_Config.m_PrismHookEffect + 1) % 5;
 		}
+		LeftColor(&s_HookPartReset, Localize("Hook particle color"), &g_Config.m_PrismHookParticleColor, ColorRGBA(0.45f, 0.90f, 0.50f, 1.0f));
+		LeftSlider(&g_Config.m_PrismHookParticleSize, Localize("Hook particle size"), 2, 24, " px");
+		LeftSlider(&g_Config.m_PrismHookParticleOpacity, Localize("Hook particle opacity"), 10, 100);
 
-		Left.HSplitTop(15.0f, nullptr, &Left);
+		LeftCheckBox(&g_Config.m_PrismTrailLocal, Localize("Local player movement trail"));
+		CUIRect TrailBtnRow = LeftRow(24.0f, 4.0f);
+		if(!s_LeftScroll.RectClipped(TrailBtnRow))
+		{
+			const char *apTrailModes[] = {"Trail Mode: Off", "Trail Mode: Line", "Trail Mode: Ribbon", "Trail Mode: Particles"};
+			static CButtonContainer s_TrailModeBtn;
+			if(DoButton_Menu(&s_TrailModeBtn, apTrailModes[std::clamp(g_Config.m_PrismTrail, 0, 3)], 0, &TrailBtnRow, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.35f))
+				g_Config.m_PrismTrail = (g_Config.m_PrismTrail + 1) % 4;
+		}
+		LeftSlider(&g_Config.m_PrismTrailWidth, Localize("Trail width"), 1, 24, " px");
+		LeftSlider(&g_Config.m_PrismTrailOpacity, Localize("Trail opacity"), 10, 100);
+		LeftColor(&s_TrailReset, Localize("Trail color"), &g_Config.m_PrismTrailColor, ColorRGBA(0.40f, 0.85f, 1.0f, 1.0f));
+		LeftCheckBox(&g_Config.m_PrismTrailOthers, Localize("Other player trails"));
 
-		// Visuals Section
-		Left.HSplitTop(25.0f, &Label, &Left);
-		Ui()->DoLabel(&Label, Localize("Visuals & Cosmetic Effects"), 18.0f, TEXTALIGN_ML);
-		Left.HSplitTop(5.0f, nullptr, &Left);
-
-		Left.HSplitTop(20.0f, &Button, &Left);
-		if(DoButton_CheckBox(&g_Config.m_PrismLocalOutline, Localize("Local tee outline"), g_Config.m_PrismLocalOutline, &Button))
-			g_Config.m_PrismLocalOutline ^= 1;
-
-		Left.HSplitTop(20.0f, &Button, &Left);
-		if(DoButton_CheckBox(&g_Config.m_PrismLocalGlow, Localize("Local tee glow"), g_Config.m_PrismLocalGlow, &Button))
-			g_Config.m_PrismLocalGlow ^= 1;
-
-		Left.HSplitTop(20.0f, &Button, &Left);
-		if(DoButton_CheckBox(&g_Config.m_PrismOtherOutline, Localize("Other tees outline"), g_Config.m_PrismOtherOutline, &Button))
-			g_Config.m_PrismOtherOutline ^= 1;
-
-		Left.HSplitTop(20.0f, &Button, &Left);
-		if(DoButton_CheckBox(&g_Config.m_PrismOtherGlow, Localize("Other tees glow"), g_Config.m_PrismOtherGlow, &Button))
-			g_Config.m_PrismOtherGlow ^= 1;
-
-		Left.HSplitTop(20.0f, &Button, &Left);
-		if(DoButton_CheckBox(&g_Config.m_PrismLocalHook, Localize("Custom hook color"), g_Config.m_PrismLocalHook, &Button))
-			g_Config.m_PrismLocalHook ^= 1;
-
-		Left.HSplitTop(20.0f, &Button, &Left);
-		if(DoButton_CheckBox(&g_Config.m_PrismTrailLocal, Localize("Local player movement trail"), g_Config.m_PrismTrailLocal, &Button))
-			g_Config.m_PrismTrailLocal ^= 1;
+		LeftCheckBox(&g_Config.m_PrismHighlight, Localize("Player highlight box"));
+		LeftSlider(&g_Config.m_PrismHighlightWidth, Localize("Highlight border width"), 1, 8, " px");
+		LeftSlider(&g_Config.m_PrismHighlightFill, Localize("Highlight fill opacity"), 0, 100);
+		LeftColor(&s_HighlightReset, Localize("Highlight color"), &g_Config.m_PrismHighlightColor, ColorRGBA(0.40f, 0.85f, 1.0f, 1.0f));
 	}
 
-	// Right Column: Modular HUD & ClickGUI / Theme
+	// ---------------- RIGHT COLUMN: Modular HUD + ClickGUI & Themes ----------------
 	{
-		// HUD Section
-		Right.HSplitTop(25.0f, &Label, &Right);
-		Ui()->DoLabel(&Label, Localize("Prism Modular HUD"), 18.0f, TEXTALIGN_ML);
-		Right.HSplitTop(5.0f, nullptr, &Right);
+		CUIRect HudLabel = RightRow(26.0f, 4.0f);
+		if(!s_RightScroll.RectClipped(HudLabel))
+			Ui()->DoLabel(&HudLabel, Localize("Prism Modular HUD"), 17.0f, TEXTALIGN_ML);
 
-		Right.HSplitTop(20.0f, &Button, &Right);
-		if(DoButton_CheckBox(&g_Config.m_PrismHudEnabled, Localize("Enable modular HUD"), g_Config.m_PrismHudEnabled, &Button))
-			g_Config.m_PrismHudEnabled ^= 1;
+		RightCheckBox(&g_Config.m_PrismHudEnabled, Localize("Enable modular HUD"));
+		RightSlider(&g_Config.m_PrismHudScale, Localize("HUD scale"), 65, 150);
+		RightSlider(&g_Config.m_PrismHudOpacity, Localize("HUD opacity"), 20, 100);
 
-		Right.HSplitTop(20.0f, &Button, &Right);
-		if(DoButton_CheckBox(&g_Config.m_PrismHudPerformance, Localize("Performance HUD (FPS & Ping)"), g_Config.m_PrismHudPerformance, &Button))
-			g_Config.m_PrismHudPerformance ^= 1;
+		RightCheckBox(&g_Config.m_PrismHudHotkeys, Localize("Active Hotkeys module"));
+		RightCheckBox(&g_Config.m_PrismHudIdentity, Localize("Identity module"));
+		RightCheckBox(&g_Config.m_PrismHudPerformance, Localize("Performance HUD (FPS & Ping)"));
+		RightCheckBox(&g_Config.m_PrismHudDummy, Localize("Dummy status module"));
+		RightCheckBox(&g_Config.m_PrismHudStaff, Localize("Staff indicator module"));
+		RightCheckBox(&g_Config.m_PrismHudInput, Localize("Keystrokes & Input HUD"));
+		RightCheckBox(&g_Config.m_PrismHudEffects, Localize("Active cosmetic effects list"));
 
-		Right.HSplitTop(20.0f, &Button, &Right);
-		if(DoButton_CheckBox(&g_Config.m_PrismHudInput, Localize("Keystrokes & Input HUD"), g_Config.m_PrismHudInput, &Button))
-			g_Config.m_PrismHudInput ^= 1;
+		static CButtonContainer s_InpActReset, s_InpInactReset;
+		RightColor(&s_InpActReset, Localize("Pressed key color"), &g_Config.m_PrismInputActiveColor, ColorRGBA(0.2f, 0.7f, 1.0f, 0.85f), true);
+		RightColor(&s_InpInactReset, Localize("Released key color"), &g_Config.m_PrismInputInactiveColor, ColorRGBA(0.1f, 0.1f, 0.15f, 0.65f), true);
 
-		Right.HSplitTop(20.0f, &Button, &Right);
-		if(DoButton_CheckBox(&g_Config.m_PrismHudIdentity, Localize("Identity HUD"), g_Config.m_PrismHudIdentity, &Button))
-			g_Config.m_PrismHudIdentity ^= 1;
+		RightCheckBox(&g_Config.m_PrismHudEdit, Localize("Drag widgets on game screen [HUD tab]"));
+		RightCheckBox(&g_Config.m_PrismHudBackground, Localize("HUD widget background"));
+		RightCheckBox(&g_Config.m_PrismHudSnap, Localize("Snap to guide lines"));
+		RightCheckBox(&g_Config.m_PrismHudEdgeSnap, Localize("Snap to screen edges"));
+		RightCheckBox(&g_Config.m_PrismHudLayoutLock, Localize("Lock HUD widget positions"));
 
-		Right.HSplitTop(20.0f, &Button, &Right);
-		if(DoButton_CheckBox(&g_Config.m_PrismHudDummy, Localize("Dummy status HUD"), g_Config.m_PrismHudDummy, &Button))
-			g_Config.m_PrismHudDummy ^= 1;
-
-		Right.HSplitTop(15.0f, nullptr, &Right);
-
-		// ClickGUI Section
-		Right.HSplitTop(25.0f, &Label, &Right);
-		Ui()->DoLabel(&Label, Localize("ClickGUI & Appearance"), 18.0f, TEXTALIGN_ML);
-		Right.HSplitTop(5.0f, nullptr, &Right);
-
-		Right.HSplitTop(20.0f, &Button, &Right);
-		static int s_ThemeIdx = 0;
-		const char *apThemes[] = {"Theme: Orange Graphite", "Theme: Glacier", "Theme: Violet"};
-		static CButtonContainer s_ThemeBtn;
-		if(DoButton_Menu(&s_ThemeBtn, apThemes[std::clamp(s_ThemeIdx, 0, 2)], 0, &Button, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.35f))
+		CUIRect ResetHudRow = RightRow(24.0f, 10.0f);
+		if(!s_RightScroll.RectClipped(ResetHudRow))
 		{
-			s_ThemeIdx = (s_ThemeIdx + 1) % 3;
-			PrismUi::ApplyTheme(g_Config, s_ThemeIdx);
+			static CButtonContainer s_ResetHudBtn;
+			if(DoButton_Menu(&s_ResetHudBtn, Localize("Reset HUD layout to default"), 0, &ResetHudRow, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.35f))
+			{
+				g_Config.m_PrismHudHotkeysX = 300; g_Config.m_PrismHudHotkeysY = 900;
+				g_Config.m_PrismHudIdentityX = 300; g_Config.m_PrismHudIdentityY = 250;
+				g_Config.m_PrismHudPerformanceX = 8200; g_Config.m_PrismHudPerformanceY = 250;
+				g_Config.m_PrismHudDummyX = 300; g_Config.m_PrismHudDummyY = 1600;
+				g_Config.m_PrismHudStaffX = 8200; g_Config.m_PrismHudStaffY = 950;
+				g_Config.m_PrismHudInputX = 300; g_Config.m_PrismHudInputY = 7500;
+				g_Config.m_PrismHudEffectsX = 7600; g_Config.m_PrismHudEffectsY = 1800;
+			}
 		}
 
-		Right.HSplitTop(5.0f, nullptr, &Right);
-		Right.HSplitTop(20.0f, &Button, &Right);
-		Ui()->DoScrollbarOption(&g_Config.m_PrismMenuScale, &g_Config.m_PrismMenuScale, &Button, Localize("ClickGUI menu scale"), 80, 120, &CUi::ms_LinearScrollbarScale, 0u, "%");
+		// ClickGUI & Appearance Section
+		CUIRect GuiLabel = RightRow(26.0f, 4.0f);
+		if(!s_RightScroll.RectClipped(GuiLabel))
+			Ui()->DoLabel(&GuiLabel, Localize("ClickGUI & Appearance"), 17.0f, TEXTALIGN_ML);
 
-		Right.HSplitTop(5.0f, nullptr, &Right);
-		Right.HSplitTop(20.0f, &Button, &Right);
-		Ui()->DoScrollbarOption(&g_Config.m_PrismPanelOpacity, &g_Config.m_PrismPanelOpacity, &Button, Localize("Glass opacity"), 50, 100, &CUi::ms_LinearScrollbarScale, 0u, "%");
+		CUIRect ThemeRow = RightRow(24.0f, 4.0f);
+		if(!s_RightScroll.RectClipped(ThemeRow))
+		{
+			static int s_ThemeIdx = 0;
+			const char *apThemes[] = {"Theme: Orange Graphite", "Theme: Glacier", "Theme: Violet"};
+			static CButtonContainer s_ThemeBtn;
+			if(DoButton_Menu(&s_ThemeBtn, apThemes[std::clamp(s_ThemeIdx, 0, 2)], 0, &ThemeRow, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.35f))
+			{
+				s_ThemeIdx = (s_ThemeIdx + 1) % 3;
+				PrismUi::ApplyTheme(g_Config, s_ThemeIdx);
+			}
+		}
 
-		Right.HSplitTop(5.0f, nullptr, &Right);
-		Right.HSplitTop(20.0f, &Button, &Right);
-		if(DoButton_CheckBox(&g_Config.m_PrismMenuLock, Localize("Lock ClickGUI position"), g_Config.m_PrismMenuLock, &Button))
-			g_Config.m_PrismMenuLock ^= 1;
+		RightSlider(&g_Config.m_PrismMenuScale, Localize("ClickGUI menu scale"), 80, 120);
+		RightSlider(&g_Config.m_PrismPanelOpacity, Localize("Glass opacity"), 50, 100);
+		RightSlider(&g_Config.m_PrismGlassDarkness, Localize("Backdrop darkness"), 0, 100);
+		RightSlider(&g_Config.m_PrismGlassTint, Localize("Glass tint"), 0, 100);
+		RightCheckBox(&g_Config.m_PrismMenuLock, Localize("Lock ClickGUI position"));
+		RightCheckBox(&g_Config.m_PrismMenuSnap, Localize("Snap ClickGUI to edges"));
 
-		Right.HSplitTop(5.0f, nullptr, &Right);
-		Right.HSplitTop(20.0f, &Button, &Right);
-		if(DoButton_CheckBox(&g_Config.m_PrismMenuSnap, Localize("Snap ClickGUI to edges"), g_Config.m_PrismMenuSnap, &Button))
-			g_Config.m_PrismMenuSnap ^= 1;
+		CUIRect ResetGuiRow = RightRow(24.0f, 4.0f);
+		if(!s_RightScroll.RectClipped(ResetGuiRow))
+		{
+			static CButtonContainer s_ResetGuiBtn;
+			if(DoButton_Menu(&s_ResetGuiBtn, Localize("Reset ClickGUI position"), 0, &ResetGuiRow, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.35f))
+			{
+				g_Config.m_PrismMenuX = 5000;
+				g_Config.m_PrismMenuY = 5000;
+			}
+		}
 	}
+
+	s_LeftScroll.End();
+	s_RightScroll.End();
 }

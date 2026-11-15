@@ -1736,8 +1736,8 @@ void CHud::OnRender()
 		if(g_Config.m_ClShowRecord)
 			RenderRecord();
 	}
-	RenderCursor();
 	RenderPrismModules();
+	RenderCursor();
 }
 
 void CHud::OnMessage(int MsgType, void *pRawMsg)
@@ -1928,6 +1928,11 @@ void CHud::RenderPrismModules()
 {
 	if(!g_Config.m_PrismHudEnabled || (Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK))
 		return;
+
+	m_Width = 300.0f * Graphics()->ScreenAspect();
+	m_Height = 300.0f;
+	Graphics()->MapScreenToSize(m_Width, m_Height);
+
 	const float Opacity = std::clamp(g_Config.m_PrismHudOpacity, 20, 100) / 100.0f;
 	struct SModule
 	{
@@ -2005,15 +2010,39 @@ void CHud::RenderPrismModules()
 		}
 		case PrismQol::HUD_INPUT:
 		{
-			char aInp[64];
 			const auto &InputData = GameClient()->m_Controls.m_aInputData[g_Config.m_ClDummy];
-			str_format(aInp, sizeof(aInp), "[%s] J:[%s] F:[%s] H:[%s]",
-				InputData.m_Direction < 0 ? "A" : (InputData.m_Direction > 0 ? "D" : "-"),
-				InputData.m_Jump ? "1" : "0",
-				(InputData.m_Fire & 1) ? "1" : "0",
-				InputData.m_Hook ? "1" : "0");
+			const bool LeftPressed = InputData.m_Direction < 0;
+			const bool RightPressed = InputData.m_Direction > 0;
+			const bool JumpPressed = InputData.m_Jump != 0;
+			const bool FirePressed = (InputData.m_Fire & 1) != 0;
+			const bool HookPressed = InputData.m_Hook != 0;
+
+			const ColorRGBA ActiveCol = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_PrismInputActiveColor, true));
+			const ColorRGBA InactiveCol = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_PrismInputInactiveColor, true));
+
 			Text(0, "Input Monitor:", true);
-			Text(1, aInp, false);
+
+			const float KeySz = std::clamp(g_Config.m_PrismInputKeySize, 12, 32) * Scale;
+			const float KeyRound = std::clamp(g_Config.m_PrismInputRounding, 0, 12) * Scale;
+			const float Spacing = 2.0f * Scale;
+			const float StartY = Y + Pad + RowHeight + 2.0f * Scale;
+
+			auto DrawKey = [&](float kx, float ky, float kw, float kh, const char *pLbl, bool Pressed) {
+				Graphics()->DrawRect(kx, ky, kw, kh, Pressed ? ActiveCol : InactiveCol, IGraphics::CORNER_ALL, KeyRound);
+				ColorRGBA TextCol = Pressed ? ColorRGBA(0.1f, 0.1f, 0.1f, 1.0f) : ColorRGBA(0.9f, 0.9f, 0.9f, 0.9f);
+				TextRender()->TextColor(TextCol);
+				float tw = TextRender()->TextWidth(Font * 0.8f, pLbl, -1, -1.0f);
+				TextRender()->Text(kx + (kw - tw) * 0.5f, ky + (kh - Font * 0.8f) * 0.5f, Font * 0.8f, pLbl, -1.0f);
+				TextRender()->TextColor(TextRender()->DefaultTextColor());
+			};
+
+			// Top row: [A] [D] [JMP]
+			DrawKey(X + Pad, StartY, KeySz, KeySz, "A", LeftPressed);
+			DrawKey(X + Pad + KeySz + Spacing, StartY, KeySz, KeySz, "D", RightPressed);
+			DrawKey(X + Pad + (KeySz + Spacing) * 2.0f, StartY, KeySz * 1.3f, KeySz, "JMP", JumpPressed);
+			// Bottom row: [FIRE] [HOOK]
+			DrawKey(X + Pad, StartY + KeySz + Spacing, (KeySz * 2.0f + Spacing) * 0.5f, KeySz, "FIRE", FirePressed);
+			DrawKey(X + Pad + (KeySz * 2.0f + Spacing) * 0.5f + Spacing, StartY + KeySz + Spacing, (KeySz * 2.0f + Spacing) * 0.5f, KeySz, "HOOK", HookPressed);
 			break;
 		}
 		case PrismQol::HUD_EFFECTS:
@@ -2022,9 +2051,9 @@ void CHud::RenderPrismModules()
 			int r = 1;
 			if(g_Config.m_PrismHatEnabled) Text(r++, "Chinese Hat");
 			if(g_Config.m_TcRainbowTees) Text(r++, "Rainbow Tees");
-			if(g_Config.m_TcRainbowHook || g_Config.m_PrismLocalHook) Text(r++, "Rainbow Hook");
-			if(g_Config.m_TcRainbowWeapon) Text(r++, "Rainbow Weapon");
+			if(g_Config.m_TcRainbowHook || g_Config.m_PrismLocalHook) Text(r++, "Custom Hook");
 			if(g_Config.m_TcTeeTrail || g_Config.m_PrismTrailLocal) Text(r++, "Movement Trails");
+			if(g_Config.m_PrismLocalOutline || g_Config.m_PrismOtherOutline) Text(r++, "Tee Outline");
 			if(g_Config.m_PrismLocalGlow || g_Config.m_PrismOtherGlow) Text(r++, "Tee Glow");
 			if(r == 1) Text(r++, "None");
 			break;

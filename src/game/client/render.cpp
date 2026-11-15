@@ -620,14 +620,13 @@ void CRenderTools::RenderChineseHat(const CAnimState *pAnim, const CTeeRenderInf
 	Config.m_OffsetY = static_cast<float>(g_Config.m_PrismHatOffsetY);
 	Config.m_Tilt = g_Config.m_PrismHatTilt != 0;
 
-	static float s_HatAnimTime = 0.0f;
-	s_HatAnimTime += 1.0f / 60.0f;
+	float AnimTime = Client() ? Client()->LocalTime() : (time_get() / (float)time_freq());
 
 	ChineseHatMesh Mesh;
 	generate_chinese_hat_mesh(
 		BodyPos.x, BodyPos.y, BodyAngle,
 		Dir.x, Dir.y, BaseSize,
-		s_HatAnimTime,
+		AnimTime,
 		&Config, &Mesh);
 
 	// Render triangular translucent facets
@@ -660,10 +659,96 @@ void CRenderTools::RenderChineseHat(const CAnimState *pAnim, const CTeeRenderInf
 
 void CRenderTools::RenderPrismTee(const CAnimState *pAnim, const CTeeRenderInfo *pInfo, vec2 Dir, vec2 Pos, float Alpha, bool Local) const
 {
-	if(!g_Config.m_PrismEnabled || Alpha <= 0.0f)
+	if(Alpha <= 0.0f)
 		return;
+
 	const bool Outline = Local ? g_Config.m_PrismLocalOutline : g_Config.m_PrismOtherOutline;
 	const bool Glow = Local ? g_Config.m_PrismLocalGlow : g_Config.m_PrismOtherGlow;
 	if(!Outline && !Glow)
 		return;
+
+	float AnimScale, BaseSize;
+	GetRenderTeeAnimScaleAndBaseSize(pInfo, AnimScale, BaseSize);
+	const vec2 BodyPos = Pos + vec2(pAnim->GetBody()->m_X, pAnim->GetBody()->m_Y) * AnimScale;
+
+	// 1. Glow Effect (soft multi-layered aura around the Tee)
+	if(Glow)
+	{
+		const unsigned GlowPacked = Local ? g_Config.m_PrismLocalGlowColor : g_Config.m_PrismOtherGlowColor;
+		const int Intensity = Local ? g_Config.m_PrismLocalGlowIntensity : g_Config.m_PrismOtherGlowIntensity;
+		const float GlowAlpha = (std::clamp(Intensity, 10, 100) / 100.0f) * Alpha * 0.40f;
+		const ColorRGBA GlowColor = color_cast<ColorRGBA>(ColorHSLA(GlowPacked)).WithAlpha(GlowAlpha);
+
+		Graphics()->TextureClear();
+		Graphics()->QuadsBegin();
+		for(int layer = 3; layer >= 1; --layer)
+		{
+			const float r = BaseSize * (0.62f + layer * 0.16f);
+			const float a = GlowColor.a / (layer * 1.4f);
+			Graphics()->SetColor(GlowColor.r, GlowColor.g, GlowColor.b, a);
+			Graphics()->DrawCircle(BodyPos.x, BodyPos.y, r, 24);
+		}
+		Graphics()->QuadsEnd();
+	}
+
+	// 2. Custom Colored Outline Pass
+	if(Outline)
+	{
+		const unsigned OutlinePacked = Local ? g_Config.m_PrismLocalOutlineColor : g_Config.m_PrismOtherOutlineColor;
+		const int OutlineWidth = Local ? g_Config.m_PrismLocalOutlineWidth : g_Config.m_PrismOtherOutlineWidth;
+		const ColorRGBA OutlineColor = color_cast<ColorRGBA>(ColorHSLA(OutlinePacked)).WithAlpha(Alpha);
+
+		const float ExtraScale = 1.0f + (std::clamp(OutlineWidth, 1, 8) - 1) * 0.045f;
+
+		if(pInfo->m_aSixup[g_Config.m_ClDummy].PartTexture(protocol7::SKINPART_BODY).IsValid())
+		{
+			const IGraphics::CTextureHandle &BodyTexture = pInfo->m_aSixup[g_Config.m_ClDummy].PartTexture(protocol7::SKINPART_BODY);
+			Graphics()->TextureSet(BodyTexture);
+			Graphics()->QuadsBegin();
+			Graphics()->QuadsSetRotation(pAnim->GetBody()->m_Angle * pi * 2);
+			Graphics()->SetColor(OutlineColor.r, OutlineColor.g, OutlineColor.b, OutlineColor.a);
+			Graphics()->SelectSprite7(client_data7::SPRITE_TEE_BODY_OUTLINE);
+			IGraphics::CQuadItem Item(BodyPos.x, BodyPos.y, BaseSize * ExtraScale, BaseSize * ExtraScale);
+			Graphics()->QuadsDraw(&Item, 1);
+			Graphics()->QuadsEnd();
+			Graphics()->QuadsSetRotation(0);
+		}
+		else
+		{
+			const CSkin::CSkinTextures *pSkinTextures = pInfo->m_CustomColoredSkin ? &pInfo->m_ColorableRenderSkin : &pInfo->m_OriginalRenderSkin;
+			float BodyScale;
+			GetRenderTeeBodyScale(BaseSize, BodyScale);
+
+			if(pSkinTextures && pSkinTextures->m_BodyOutline.IsValid())
+			{
+				Graphics()->TextureSet(pSkinTextures->m_BodyOutline);
+				Graphics()->QuadsSetRotation(pAnim->GetBody()->m_Angle * pi * 2);
+				Graphics()->SetColor(OutlineColor.r, OutlineColor.g, OutlineColor.b, OutlineColor.a);
+				Graphics()->RenderQuadContainerAsSprite(m_TeeQuadContainerIndex, 1, BodyPos.x, BodyPos.y, BodyScale * ExtraScale, BodyScale * ExtraScale);
+				Graphics()->QuadsSetRotation(0);
+			}
+			else
+			{
+				Graphics()->TextureClear();
+				Graphics()->QuadsBegin();
+				Graphics()->SetColor(OutlineColor.r, OutlineColor.g, OutlineColor.b, OutlineColor.a);
+				const float OuterR = BaseSize * 0.52f * ExtraScale;
+				const float InnerR = BaseSize * 0.46f;
+				const int Segments = 32;
+				for(int i = 0; i < Segments; ++i)
+				{
+					float a1 = 2.0f * pi * (float)i / Segments;
+					float a2 = 2.0f * pi * (float)(i + 1) / Segments;
+					IGraphics::CFreeformItem Quad(
+						BodyPos.x + std::cos(a1) * InnerR, BodyPos.y + std::sin(a1) * InnerR,
+						BodyPos.x + std::cos(a2) * InnerR, BodyPos.y + std::sin(a2) * InnerR,
+						BodyPos.x + std::cos(a2) * OuterR, BodyPos.y + std::sin(a2) * OuterR,
+						BodyPos.x + std::cos(a1) * OuterR, BodyPos.y + std::sin(a1) * OuterR);
+					Graphics()->QuadsDrawFreeform(&Quad, 1);
+				}
+				Graphics()->QuadsEnd();
+			}
+		}
+		Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+	}
 }
