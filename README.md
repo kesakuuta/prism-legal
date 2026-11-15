@@ -238,6 +238,7 @@ make -j$(nproc) chroma.
 - Клиент основан на исходном коде [DDRaceNetwork](https://github.com/ddnet/ddnet) и [Teeworlds](https://www.teeworlds.com/).
 - Распространяется на условиях лицензий **GPLv3** и **BSD**.
 - Все товарные знаки, ресурсы и исходный код принадлежат их уважаемым авторам.
+- Отдельная благодарность [Prism](https://github.com/atlasru/prism) и [TClient](https://github.com/TaterClient/TClient)
 
 <br>
 
