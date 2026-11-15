@@ -8,6 +8,7 @@
 #include <engine/client/keyboard.h>
 #include <engine/keys.h>
 #include <engine/shared/config.h>
+#include <game/client/animstate.h>
 #include <game/client/prism.h>
 #include <game/client/prism_qol.h>
 #include <game/client/prism_theme.h>

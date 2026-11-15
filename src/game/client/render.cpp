@@ -6,6 +6,7 @@
 
 #include <base/math.h>
 #include <base/str.h>
+#include <base/time.h>
 
 #include <engine/graphics.h>
 #include <engine/shared/config.h>
@@ -620,7 +621,7 @@ void CRenderTools::RenderChineseHat(const CAnimState *pAnim, const CTeeRenderInf
 	Config.m_OffsetY = static_cast<float>(g_Config.m_PrismHatOffsetY);
 	Config.m_Tilt = g_Config.m_PrismHatTilt != 0;
 
-	float AnimTime = Client() ? Client()->LocalTime() : (time_get() / (float)time_freq());
+	float AnimTime = (float)((double)time_get() / (double)time_freq());
 
 	ChineseHatMesh Mesh;
 	generate_chinese_hat_mesh(
