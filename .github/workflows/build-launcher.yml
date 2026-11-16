@@ -1,0 +1,53 @@
+name: Build chroma. Launcher
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'launcher/**'
+      - '.github/workflows/build-launcher.yml'
+  workflow_dispatch:
+
+jobs:
+  build-launcher:
+    name: Build Windows Launcher
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Build Launcher Binary
+        shell: bash
+        run: |
+          cd launcher
+          cargo build --release
+
+      - name: Package Launcher Binary
+        shell: bash
+        run: |
+          mkdir -p dist-launcher
+          cp launcher/target/release/chroma-launcher.exe dist-launcher/chroma-launcher.exe
+          cd dist-launcher
+          7z a ../chroma-launcher-Windows-x64.zip chroma-launcher.exe
+
+      - name: Upload Launcher Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chroma-launcher-Windows-x64
+          path: dist-launcher/chroma-launcher.exe
+
+      - name: Attach Launcher to GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: always()
+        with:
+          tag_name: v1.0.7
+          files: |
+            dist-launcher/chroma-launcher.exe
+            chroma-launcher-Windows-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
