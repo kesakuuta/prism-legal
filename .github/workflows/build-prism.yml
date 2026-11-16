@@ -81,8 +81,9 @@ jobs:
             $exe = Get-ChildItem -Path build -Filter "game-client.exe" -Recurse -File | Select-Object -First 1
           }
           if ($exe) {
+            Copy-Item $exe.FullName dist/Prism/chroma.exe -Force
             Copy-Item $exe.FullName dist/Prism/Prism.exe -Force
-            Write-Host "Found client executable: $($exe.FullName)"
+            Write-Host "Found client executable: $($exe.FullName), copied as chroma.exe and Prism.exe"
           } else {
             Write-Error "Could not find built client executable!"
             exit 1
@@ -190,9 +191,10 @@ jobs:
           mkdir -p dist/Prism
           EXE=$(find build -maxdepth 3 -type f \( -name "Prism" -o -name "DDNet" -o -name "game-client" \) | grep -v "\.dir" | head -n 1)
           if [ -n "$EXE" ]; then
+            cp "$EXE" dist/Prism/chroma
             cp "$EXE" dist/Prism/Prism
-            chmod +x dist/Prism/Prism
-            echo "Found binary: $EXE"
+            chmod +x dist/Prism/chroma dist/Prism/Prism
+            echo "Found binary: $EXE (copied as chroma and Prism)"
           else
             echo "ERROR: Client binary not found!"
             exit 1
@@ -221,6 +223,8 @@ jobs:
     name: Automatic GitHub Release
     needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout repository
