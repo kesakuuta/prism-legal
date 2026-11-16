@@ -12,6 +12,8 @@ jobs:
   build-launcher:
     name: Build Windows Launcher
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
