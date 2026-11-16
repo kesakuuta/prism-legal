@@ -24,16 +24,18 @@ jobs:
       - name: Build Launcher Binary
         shell: bash
         run: |
-          cd launcher
-          cargo build --release
+          cargo build --release --package chroma-launcher
 
       - name: Package Launcher Binary
-        shell: bash
+        shell: pwsh
         run: |
-          mkdir -p dist-launcher
-          cp launcher/target/release/chroma-launcher.exe dist-launcher/chroma-launcher.exe
-          cd dist-launcher
-          7z a ../chroma-launcher-Windows-x64.zip chroma-launcher.exe
+          New-Item -ItemType Directory -Force -Path dist-launcher
+          if (Test-Path "target/release/chroma-launcher.exe") {
+            Copy-Item "target/release/chroma-launcher.exe" "dist-launcher/chroma-launcher.exe"
+          } elseif (Test-Path "launcher/target/release/chroma-launcher.exe") {
+            Copy-Item "launcher/target/release/chroma-launcher.exe" "dist-launcher/chroma-launcher.exe"
+          }
+          Compress-Archive -Path "dist-launcher/chroma-launcher.exe" -DestinationPath "chroma-launcher-Windows-x64.zip" -Force
 
       - name: Upload Launcher Artifact
         uses: actions/upload-artifact@v4
