@@ -94,7 +94,7 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 	Menu.HSplitBottom(40.0f, &Menu, &Button);
 	static CButtonContainer s_QuitButton;
 	bool UsedEscape = false;
-	if(GameClient()->m_Menus.DoButton_Menu(&s_QuitButton, Localize("Quit"), 0, &Button, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, Rounding, 0.5f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f)) || (!GameClient()->m_Menus.IsPrismOpen() && GameClient()->m_Menus.m_PrismTransition <= 0.01f && (UsedEscape = Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE))) || CheckHotKey(KEY_Q))
+	if(GameClient()->m_Menus.DoButton_Menu(&s_QuitButton, Localize("Quit"), 0, &Button, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, Rounding, 0.5f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f)) || (!GameClient()->m_Menus.IsPrismOpen() && (UsedEscape = Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE))) || CheckHotKey(KEY_Q))
 	{
 		if(UsedEscape || GameClient()->Editor()->HasUnsavedData() || (GameClient()->CurrentRaceTime() / 60 >= g_Config.m_ClConfirmQuitTime && g_Config.m_ClConfirmQuitTime >= 0))
 		{

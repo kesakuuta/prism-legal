@@ -683,7 +683,8 @@ public:
 
 	bool IsActive() const { return m_MenuActive; }
 	void SetActive(bool Active);
-	bool IsPrismOpen() const { return m_PrismOpen; }
+	bool IsPrismOpen() const { return m_PrismOpen || m_PrismTransition > 0.01f; }
+	float PrismTransition() const { return m_PrismTransition; }
 	void TogglePrism();
 
 	void OnInterfacesInit(CGameClient *pClient) override;
