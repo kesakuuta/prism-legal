@@ -817,6 +817,8 @@ MACRO_CONFIG_INT(ChromaLanguage, chroma_language, 1, 0, 1, CFGFLAG_CLIENT | CFGF
 MACRO_CONFIG_INT(ChromaCustomMenu, chroma_custom_menu, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Enable chroma. custom JSON main menu theme")
 MACRO_CONFIG_INT(ChromaMenuTheme, chroma_menu_theme, 1, 0, 4, CFGFLAG_CLIENT | CFGFLAG_SAVE, "chroma. menu theme preset: 0 DDNet, 1 Chrome Heart Dark, 2 Chrome Heart Sword, 3 Fuji Sakura, 4 Custom")
 MACRO_CONFIG_STR(ChromaThemePath, chroma_theme_path, 256, "chroma/themes/chrome_dark/theme.json", CFGFLAG_CLIENT | CFGFLAG_SAVE, "Path to active chroma. theme.json")
+MACRO_CONFIG_INT(ChromaShaders, chroma_shaders, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Enable post-processing shaderpacks")
+MACRO_CONFIG_STR(ChromaActiveShader, chroma_active_shader, 128, "atmospheric_amber", CFGFLAG_CLIENT | CFGFLAG_SAVE, "Active shaderpack name")
 
 // T-Client settings
 #include "config_variables_tclient.h"

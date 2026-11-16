@@ -14,7 +14,7 @@
 
 <br>
 
-[![Release](https://img.shields.io/badge/Release-v1.0.5-8A2BE2?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kesakuuta/prism-legal/releases/tag/v1.0.5)
+[![Release](https://img.shields.io/badge/Release-v1.0.7-8A2BE2?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kesakuuta/prism-legal/releases/tag/v1.0.7)
 [![Base](https://img.shields.io/badge/DDNet-20.3-00C853?style=for-the-badge&logo=cplusplus&logoColor=white)](https://github.com/ddnet/ddnet)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/kesakuuta/prism-legal/releases)
 [![Fair Play](https://img.shields.io/badge/Fair--Play-100%25%20Legal-FFD700?style=for-the-badge&logo=shield&logoColor=black)](https://github.com/kesakuuta/prism-legal)
@@ -22,7 +22,7 @@
 
 <br>
 
-[✨ Особенности](#-ключевые-особенности) • [📥 Скачать](#-установка-и-запуск) • [🎨 Создание тем](#-создание-собственных-тем) • [⌨️ Управление](#️-горячие-клавиши) • [🛠️ Сборка](#️-сборка-из-исходников) • [English](#-english-summary)
+[✨ Особенности](#-ключевые-особенности) • [📥 Скачать](#-установка-и-запуск) • [🎨 Создание тем](#-создание-собственных-тем) • [🔮 Шейдеры](#-шейдеры-и-пост-процессинг) • [🎵 Музыка](#-музыкальный-плеер-в-меню) • [🚀 Лаунчер](#-нативный-лаунчер-rust) • [⌨️ Управление](#️-горячие-клавиши) • [🛠️ Сборка](#️-сборка-из-исходников) • [English](#-english-summary)
 
 ---
 
@@ -95,8 +95,8 @@
 
 | Платформа | Архитектура | Формат | Ссылка на скачивание |
 | :--- | :---: | :---: | :--- |
-| **Windows** | `x86_64` | `.zip` | [📥 **Скачать chroma. v1.0.5 (Windows)**](https://github.com/kesakuuta/prism-legal/releases/download/v1.0.5/chroma.-Windows-x64.zip) |
-| **Linux** | `x86_64` | `.tar.gz` | [📥 **Скачать chroma. v1.0.5 (Linux)**](https://github.com/kesakuuta/prism-legal/releases/download/v1.0.5/chroma.-Linux-x86_64.tar.gz) |
+| **Windows** | `x86_64` | `.zip` | [📥 **Скачать chroma. v1.0.7 (Windows)**](https://github.com/kesakuuta/prism-legal/releases/download/v1.0.7/chroma.-Windows-x64.zip) |
+| **Linux** | `x86_64` | `.tar.gz` | [📥 **Скачать chroma. v1.0.7 (Linux)**](https://github.com/kesakuuta/prism-legal/releases/download/v1.0.7/chroma.-Linux-x86_64.tar.gz) |
 
 > [!TIP]
 > **Быстрый старт на Windows:**
@@ -157,6 +157,104 @@ data/chroma/themes/cyberpunk/
 <br>
 
 ---
+
+## 🔮 Шейдеры и Пост-Процессинг
+
+В `chroma.` интегрирован конвейер пост-обработки **OpenGL 3.3 Core Profile**, преображающий рендеринг карты и динамического освещения в реальном времени. Шейдеры не влияют на соревновательную физику игры и работают полностью аппаратно.
+
+Вы можете включать и настраивать шейдеры прямо в игре:
+* **Настройки -> Ассеты -> Шейдеры**: выбор шейдерпака, ползунки радиуса света, интенсивности, плотности тумана, летающих пылинок и виньетки, а также кнопка быстрого перехода в папку.
+* **ClickGUI (`Insert`)**: переключение и тюнинг на лету.
+
+<br>
+
+### 📁 Структура папки шейдерпака:
+
+Каждый шейдерпак находится в `data/chroma/shaders/<название_шейдера>/`:
+```text
+data/chroma/shaders/atmospheric_amber/
+├── atmospheric_glow.vert  # Вершинный шейдер (Fullscreen Quad)
+├── atmospheric_glow.frag  # Фрагментный шейдер пост-обработки
+└── shader.json            # Манифест параметров и значений по умолчанию
+```
+
+### ⚙️ Спецификация `shader.json`:
+
+```json
+{
+  "name": "atmospheric_amber",
+  "author": "chroma.",
+  "version": "1.0",
+  "description": "Cinematic volumetric lighting with warm dust motes and soft vignette",
+  "vertex_shader": "atmospheric_glow.vert",
+  "fragment_shader": "atmospheric_glow.frag",
+  "defaults": {
+    "u_LightRadius": 0.45,
+    "u_LightIntensity": 1.35,
+    "u_AmbientDark": 0.12,
+    "u_FogDensity": 0.35,
+    "u_DustIntensity": 0.65,
+    "u_VignettePower": 0.85
+  }
+}
+```
+
+### 📐 Контракт Uniform-переменных (GLSL Contract):
+
+Движок `chroma.` передает во фрагментный шейдер следующие переменные:
+
+| Uniform | Тип | Диапазон | Описание |
+| :--- | :--- | :--- | :--- |
+| `u_ScreenTexture` | `sampler2D` | Текстурный слот 0 | Фреймбуфер отрендеренной сцены Teeworlds. |
+| `u_Resolution` | `vec2` | Пиксели (напр. `1920, 1080`) | Разрешение окна для коррекции пропорций (Aspect Ratio). |
+| `u_PlayerPos` | `vec2` | `[0.0, 1.0]` | Нормализованная позиция тишки игрока на экране (центр света). |
+| `u_Time` | `float` | Секунды | Непрерывный таймер для анимации тумана и мерцания пылинок. |
+| `u_LightRadius` | `float` | `0.15 – 1.0` | Радиус светового пузыря вокруг игрока. |
+| `u_LightIntensity` | `float` | `0.5 – 3.0` | Множитель яркости в эпицентре источника света. |
+| `u_LightColor` | `vec3` | RGB `[0.0, 1.0]` | Оттенок света и пылинок (напр. янтарный, неон, лунный). |
+| `u_AmbientDark` | `float` | `0.02 – 0.35` | Освещенность неосвещенных зон карты (темнота). |
+| `u_FogDensity` | `float` | `0.0 – 1.0` | Плотность процедурного дрейфующего тумана (fBm). |
+| `u_DustIntensity` | `float` | `0.0 – 2.0` | Плотность и яркость летающих микрочастиц пыли. |
+| `u_VignettePower` | `float` | `0.0 – 2.0` | Сила затемнения по краям и углам видоискателя. |
+
+<br>
+
+---
+
+## 🎵 Музыкальный плеер в меню
+
+В правом нижнем углу главного меню встроен стильный компактный виджет аудиоплеера:
+- **Управление:** `Play/Pause`, предыдущий и следующий треки, случайный порядок (`Shuffle`), повтор (`Repeat`).
+- **Интерактивный скруббер:** плавная перемотка трека мышью в реальном времени.
+- **Список воспроизведения:** выпадающий список треков по нажатию на иконку списка.
+- **Громкость:** привязана к глобальному регулятору громкости звуков игры (**Настройки -> Звуки**).
+- **Поддержка форматов:** высококачественные аудиофайлы `.wv` (WavPack) и `.opus` (Opus).
+- **Добавление треков:** просто скопируйте ваши треки в формате `Исполнитель - Название.wv` или `Название.opus` в папку `data/audio/music/`.
+
+<br>
+
+---
+
+## 🚀 Нативный лаунчер (Rust)
+
+Для удобного запуска клиента, быстрого переключения тем, шейдерпаков, шрифтов и управления ассетами разработан легковесный нативный лаунчер на **Rust**.
+
+> [!NOTE]
+> Код лаунчера расположен в приватной ветке разработки **`dev`** в директории `launcher/`.
+
+### Возможности лаунчера:
+- **Заставка «chroma.»** при старте лаунчера.
+- **Верхняя навигация:** Темы, Шейдеры, Шрифты, Музыка, Ассеты.
+- **Категории ассетов DDNet:** сущности (Entities), игровой процесс (Game), эмотиконы (Emoticons), частицы (Particles), HUD, экстра (Extras).
+- **Настройки:**
+  - Переключатель языка (Русский / English) — в самом верху настроек.
+  - Персонализация фона: выбор собственного изображения PNG/JPG/WebP с режимами `fill`, `fit`, `stretch`, `center`.
+  - Автоматическая адаптация цвета текста под яркость фонового изображения.
+  - Поведение при старте игры: сворачивать лаунчер или оставлять открытым.
+  - Путь к исполняемому файлу клиента (`Prism.exe` / `chroma.exe`).
+- **Кнопка «Играть»:** мгновенный запуск оптимизированного бинарника клиента с проверкой целостности.
+
+<br>
 
 ## ⌨️ Горячие клавиши
 
@@ -222,9 +320,12 @@ make -j$(nproc) chroma.
 ### Key Highlights:
 - **Zero Cheats / 100% Legal:** Fully compliant with official DDNet servers. No aimbots, no auto-hook, no prediction cheats.
 - **Custom JSON Theme Engine:** Create or drop themes into `data/chroma/themes/` with custom backgrounds, fonts, and button labels. Includes dynamic background luminance contrast adaptation.
+- **Atmospheric Post-Processing Shaders:** Fullscreen OpenGL 3.3 pipeline with radial player lights, volumetric fBm fog, glittering dust motes, and cinematic vignette. Configure in Settings -> Assets -> Shaders.
+- **In-Menu Music Player:** Floating bottom-right player widget with seek bar, playlist popup, shuffle, and loop. Supports `.wv` and `.opus` in `data/audio/music/`.
 - **Procedural 3D Conical Hat (斗笠):** 64-vertex real-time parametric Asian straw hat with custom fabric/rib colors, rainbow hues, and velocity/aim tilting.
 - **Sleek ClickGUI (`Insert`):** Floating overlay with interactive Color Picker (Hex, RGBA, HSVA) and input shielding.
 - **Modular HUD:** Freely scalable and configurable HUD modules for hotkeys, identity, dummy, and input displays.
+- **Native Rust Launcher:** Available in branch `dev`, with asset managers, DDNet launcher settings, custom backgrounds, and play button.
 - **Bilingual Interface:** Full Russian and English localization.
 
 </details>

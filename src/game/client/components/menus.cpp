@@ -684,67 +684,103 @@ void CMenus::RenderMenubar(CUIRect Box, IClient::EClientState ClientState)
 	}
 }
 
+static int64_t s_StartupVideoStartTime = 0;
+static IGraphics::CTextureHandle s_CurrentVideoFrameTex;
+static int s_CurrentVideoFrameIdx = -1;
+
 void CMenus::RenderLoadingDirect(const char *pCaption, const char *pContent, std::optional<float> Progress)
 {
-	// TODO: not supported right now due to separate render thread
-
-	// make sure that we don't render for each little thing we load
-	// because that will slow down loading if we have vsync
-	// make sure we otherwise update the progressbar if we have one for a smoother animation
 	const std::chrono::nanoseconds Now = time_get_nanoseconds();
 
-	/* Limit FPS to something reasonable. Ideally the values would just be stored and the rendering would be on a **consistent** timer with 60Hz
-	 * Waiting for calls of this function makes the rendering stutter, which you can notice with the background
-	 */
 	int RefreshRate = g_Config.m_GfxVsync || !Progress.has_value() ? 60 : (in_range(g_Config.m_GfxRefreshRate, 1, 300) ? g_Config.m_GfxRefreshRate : 300);
 	if(RefreshRate > 0 && Now - m_LoadingState.m_LastRender < std::chrono::nanoseconds(1s) / RefreshRate)
 		return;
 
-	// need up date this here to get correct
 	ms_GuiColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_UiColor, true));
-
 	Ui()->MapScreen();
-
-	if(GameClient()->m_MenuBackground.IsLoading())
-	{
-		// Avoid rendering while loading the menu background as this would otherwise
-		// cause the regular menu background to be rendered for a few frames while
-		// the menu background is not loaded yet.
-		return;
-	}
-	if(!GameClient()->m_MenuBackground.Render())
-	{
-		RenderBackground();
-	}
+	CUIRect Screen = *Ui()->Screen();
 
 	m_LoadingState.m_LastRender = Now;
 
-	CUIRect Box;
-	Ui()->Screen()->Margin(160.0f, &Box);
+	if(s_StartupVideoStartTime == 0)
+		s_StartupVideoStartTime = time_get();
 
+	float Elapsed = (float)(time_get() - s_StartupVideoStartTime) / (float)time_freq();
+	int TargetFrame = std::clamp((int)(Elapsed * 30.0f) + 1, 1, 91);
+	bool VideoPlaying = (TargetFrame < 91);
+
+	// Load video frame texture on demand
+	if(TargetFrame != s_CurrentVideoFrameIdx)
+	{
+		char aFramePath[64];
+		str_format(aFramePath, sizeof(aFramePath), "video/startup/frame_%03d.png", TargetFrame);
+		if(Storage()->FileExists(aFramePath, IStorage::TYPE_ALL))
+		{
+			if(s_CurrentVideoFrameTex.IsValid())
+				Graphics()->UnloadTexture(&s_CurrentVideoFrameTex);
+			s_CurrentVideoFrameTex = Graphics()->LoadTexture(aFramePath, IStorage::TYPE_ALL);
+			s_CurrentVideoFrameIdx = TargetFrame;
+		}
+	}
+
+	// Draw fullscreen startup frame
+	if(s_CurrentVideoFrameTex.IsValid())
+	{
+		Graphics()->TextureSet(s_CurrentVideoFrameTex);
+		Graphics()->QuadsBegin();
+		Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+		IGraphics::CQuadItem Quad(Screen.x, Screen.y, Screen.w, Screen.h);
+		Graphics()->QuadsDrawTL(&Quad, 1);
+		Graphics()->QuadsEnd();
+	}
+	else
+	{
+		Graphics()->TextureClear();
+		Screen.Draw(ColorRGBA(0.04f, 0.04f, 0.05f, 1.0f), IGraphics::CORNER_NONE, 0.0f);
+	}
+
+	// While video is playing: completely hide loading bar and text
+	if(VideoPlaying)
+	{
+		Graphics()->SetColor(1.0, 1.0, 1.0, 1.0);
+		Client()->UpdateAndSwap();
+		return;
+	}
+
+	// Video reached final frame: render thin bottom-centered loading bar & text
+	const float BarW = 380.0f;
+	const float BarH = 6.0f;
+	CUIRect BarRect = {(Screen.w - BarW) / 2.0f, Screen.h - 52.0f, BarW, BarH};
+
+	// Loading text above bar
+	const char *pText = (pContent && pContent[0]) ? pContent : pCaption;
+	if(pText && pText[0])
+	{
+		char aProgressBuf[128];
+		if(Progress.has_value())
+			str_format(aProgressBuf, sizeof(aProgressBuf), "%s (%.0f%%)", pText, std::clamp(Progress.value(), 0.0f, 1.0f) * 100.0f);
+		else
+			str_copy(aProgressBuf, pText);
+
+		TextRender()->TextColor(ColorRGBA(0.92f, 0.92f, 0.95f, 0.95f));
+		TextRender()->Text(BarRect.x, BarRect.y - 18.0f, 12.0f, aProgressBuf);
+		TextRender()->TextColor(TextRender()->DefaultTextColor());
+	}
+
+	// Bar background (black with crisp white outline)
 	Graphics()->TextureClear();
-	Box.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.5f), IGraphics::CORNER_ALL, 15.0f);
-	Box.Margin(20.0f, &Box);
+	BarRect.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.90f), IGraphics::CORNER_ALL, 3.0f);
+	RenderTools()->DrawRoundRectOutline(&BarRect, ColorRGBA(1.0f, 1.0f, 1.0f, 0.85f), 3.0f, 1.0f);
 
-	CUIRect Label;
-	Box.HSplitTop(24.0f, &Label, &Box);
-	Ui()->DoLabel(&Label, pCaption, 24.0f, TEXTALIGN_MC);
-
-	Box.HSplitTop(20.0f, nullptr, &Box);
-	Box.HSplitTop(24.0f, &Label, &Box);
-	Ui()->DoLabel(&Label, pContent, 20.0f, TEXTALIGN_MC);
-
+	// White progress fill
 	if(Progress.has_value())
 	{
-		CUIRect ProgressBar;
-		Box.HSplitBottom(30.0f, &Box, nullptr);
-		Box.HSplitBottom(25.0f, &Box, &ProgressBar);
-		ProgressBar.VMargin(20.0f, &ProgressBar);
-		Ui()->RenderProgressBar(ProgressBar, std::clamp(Progress.value(), 0.0f, 1.0f));
+		CUIRect FillRect = BarRect;
+		FillRect.w *= std::clamp(Progress.value(), 0.0f, 1.0f);
+		FillRect.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f), IGraphics::CORNER_ALL, 3.0f);
 	}
 
 	Graphics()->SetColor(1.0, 1.0, 1.0, 1.0);
-
 	Client()->UpdateAndSwap();
 }
 
@@ -2368,6 +2404,7 @@ bool CMenus::OnInput(const IInput::CEvent &Event)
 			}
 			m_PrismOpen = false;
 			Ui()->SetActiveItem(nullptr);
+			Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE);
 			Ui()->ClearHotkeys();
 			return true;
 		}
@@ -2484,9 +2521,10 @@ void CMenus::OnRender()
 	unsigned SavedMouseButtons = Ui()->GetMouseButtons();
 	unsigned SavedLastMouseButtons = Ui()->GetLastMouseButtons();
 
-	if(m_PrismOpen)
+	if(m_PrismOpen || m_PrismTransition > 0.0f)
 	{
-		// Shield background buttons from receiving clicks or hover while ClickGUI is open
+		// Shield background buttons from receiving clicks, hover, or escape while ClickGUI is open/animating
+		Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE);
 		Ui()->SetMousePos(vec2(-100000.0f, -100000.0f));
 		Ui()->SetMouseButtons(0, 0);
 	}

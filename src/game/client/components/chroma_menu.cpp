@@ -244,16 +244,49 @@ void CChromaMenu::Render(CGameClient *pGameClient, CUIRect MainView)
 
 	// 1. Render Full-Viewport Background (covers the entire screen with 0 margin leakage)
 	const CUIRect Screen = *pGameClient->Ui()->Screen();
-	pGameClient->Graphics()->DrawRect(Screen.x, Screen.y, Screen.w, Screen.h, s_ActiveTheme.m_BackgroundFill, IGraphics::CORNER_NONE, 0.0f);
+	const float Dt = std::clamp(pGameClient->Client()->RenderFrameTime(), 0.001f, 0.1f);
+
+	static float s_StartupBgAlpha = 0.0f;
+	static float s_StartupButtonsAlpha = 0.0f;
+	static IGraphics::CTextureHandle s_FrozenFrameTex;
+
+	if(s_StartupBgAlpha < 1.0f)
+	{
+		// Draw frozen last frame underneath during crossfade
+		if(!s_FrozenFrameTex.IsValid())
+			s_FrozenFrameTex = pGameClient->Graphics()->LoadTexture("video/startup/frame_091.png", IStorage::TYPE_ALL);
+
+		if(s_FrozenFrameTex.IsValid())
+		{
+			pGameClient->Graphics()->TextureSet(s_FrozenFrameTex);
+			pGameClient->Graphics()->QuadsBegin();
+			pGameClient->Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+			IGraphics::CQuadItem Quad(Screen.x, Screen.y, Screen.w, Screen.h);
+			pGameClient->Graphics()->QuadsDrawTL(&Quad, 1);
+			pGameClient->Graphics()->QuadsEnd();
+		}
+
+		s_StartupBgAlpha = std::min(1.0f, s_StartupBgAlpha + Dt * 2.5f);
+	}
+
+	ColorRGBA BgFill = s_ActiveTheme.m_BackgroundFill;
+	BgFill.a *= s_StartupBgAlpha;
+	pGameClient->Graphics()->DrawRect(Screen.x, Screen.y, Screen.w, Screen.h, BgFill, IGraphics::CORNER_NONE, 0.0f);
 	if(s_BackgroundTex.IsValid())
 	{
 		pGameClient->Graphics()->TextureSet(s_BackgroundTex);
 		pGameClient->Graphics()->QuadsBegin();
-		pGameClient->Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+		pGameClient->Graphics()->SetColor(1.0f, 1.0f, 1.0f, s_StartupBgAlpha);
 		IGraphics::CQuadItem Quad(Screen.x, Screen.y, Screen.w, Screen.h);
 		pGameClient->Graphics()->QuadsDrawTL(&Quad, 1);
 		pGameClient->Graphics()->QuadsEnd();
 	}
+
+	// Wait until background crossfade completes before showing buttons/watermark
+	if(s_StartupBgAlpha < 0.99f)
+		return;
+
+	s_StartupButtonsAlpha = std::min(1.0f, s_StartupButtonsAlpha + Dt * 3.0f);
 
 	// Dynamic text contrast adaptation to background brightness
 	const float Luma = s_ActiveTheme.m_BackgroundFill.r * 0.299f + s_ActiveTheme.m_BackgroundFill.g * 0.587f + s_ActiveTheme.m_BackgroundFill.b * 0.114f;
@@ -278,7 +311,9 @@ void CChromaMenu::Render(CGameClient *pGameClient, CUIRect MainView)
 		BaseHoverColor = ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f);
 	}
 
-	const ColorRGBA OutlineCol = BrightBg ? ColorRGBA(1.0f, 1.0f, 1.0f, 0.40f) : ColorRGBA(0.0f, 0.0f, 0.0f, 0.65f);
+	ColorRGBA OutlineCol = BrightBg ? ColorRGBA(1.0f, 1.0f, 1.0f, 0.40f) : ColorRGBA(0.0f, 0.0f, 0.0f, 0.65f);
+	GreetingColor.a *= s_StartupButtonsAlpha;
+	OutlineCol.a *= s_StartupButtonsAlpha;
 
 	// 1.5. Set font preset if theme requests custom/pixel font
 	const bool UsePixelFont = !s_ActiveTheme.m_FontFamily.empty() ||
@@ -375,11 +410,11 @@ void CChromaMenu::Render(CGameClient *pGameClient, CUIRect MainView)
 		const float H = s_aButtonHover[Slot];
 
 		// Text Color blend with background adaptation
-		const ColorRGBA TextCol(
+		ColorRGBA TextCol(
 			BaseTextColor.r + (BaseHoverColor.r - BaseTextColor.r) * H,
 			BaseTextColor.g + (BaseHoverColor.g - BaseTextColor.g) * H,
 			BaseTextColor.b + (BaseHoverColor.b - BaseTextColor.b) * H,
-			BaseTextColor.a + (BaseHoverColor.a - BaseTextColor.a) * H);
+			(BaseTextColor.a + (BaseHoverColor.a - BaseTextColor.a) * H) * s_StartupButtonsAlpha);
 
 		// Subtle hover bar
 		if(H > 0.01f)
@@ -436,16 +471,21 @@ void CChromaMenu::Render(CGameClient *pGameClient, CUIRect MainView)
 		CurY += s_ActiveTheme.m_ButtonSpacing + 5.0f;
 	}
 
-	// 4. Watermark & Escape key handling
-	if(pGameClient->Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE) || pGameClient->Input()->KeyPress(KEY_ESCAPE))
+	// 4. Watermark & Escape key handling (guarded against ClickGUI conflict)
+	if(!pGameClient->m_Menus.IsPrismOpen() && pGameClient->m_Menus.m_PrismTransition <= 0.01f && !pGameClient->Ui()->IsPopupOpen())
 	{
-		pGameClient->m_Menus.ShowQuitPopup();
+		if(pGameClient->Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE))
+		{
+			pGameClient->m_Menus.ShowQuitPopup();
+		}
 	}
 
 	if(s_ActiveTheme.m_ShowVersion || !s_ActiveTheme.m_WatermarkText.empty())
 	{
 		const char *pWatermark = !s_ActiveTheme.m_WatermarkText.empty() ? s_ActiveTheme.m_WatermarkText.c_str() : "chroma. | DDNet 20.3";
-		pGameClient->TextRender()->TextColor(BrightBg ? ColorRGBA(0.15f, 0.15f, 0.18f, 0.70f) : ColorRGBA(0.85f, 0.85f, 0.88f, 0.70f));
+		ColorRGBA WatermarkCol = BrightBg ? ColorRGBA(0.15f, 0.15f, 0.18f, 0.70f) : ColorRGBA(0.85f, 0.85f, 0.88f, 0.70f);
+		WatermarkCol.a *= s_StartupButtonsAlpha;
+		pGameClient->TextRender()->TextColor(WatermarkCol);
 		pGameClient->TextRender()->Text(Screen.x + 18.0f, Screen.y + Screen.h - 26.0f, 10.0f, pWatermark);
 		pGameClient->TextRender()->TextColor(pGameClient->TextRender()->DefaultTextColor());
 	}

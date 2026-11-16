@@ -575,6 +575,8 @@ protected:
 
 	// found in menus_settings_assets.cpp
 	void RenderSettingsAssets(CUIRect MainView);
+	void RenderSettingsShaders(CUIRect MainView);
+	void RenderSettingsFonts(CUIRect MainView);
 
 	// found in menus_settings_appearance.cpp
 	void RenderSettingsAppearance(CUIRect MainView);

@@ -234,7 +234,7 @@ void CMenuBackground::LoadMenuBackground(bool HasDayHint, bool HasNightHint)
 		if(!m_Loaded && ((HasDayHint && IsDaytime) || (HasNightHint && !IsDaytime)))
 		{
 			str_format(aBuf, sizeof(aBuf), "themes/%s_%s.map", pMenuMap, IsDaytime ? "day" : "night");
-			if(m_pMap->Load(pMenuMap, Storage(), aBuf, IStorage::TYPE_ALL))
+			if(Storage()->FileExists(aBuf, IStorage::TYPE_ALL) && m_pMap->Load(pMenuMap, Storage(), aBuf, IStorage::TYPE_ALL))
 			{
 				m_Loaded = true;
 			}
@@ -243,7 +243,7 @@ void CMenuBackground::LoadMenuBackground(bool HasDayHint, bool HasNightHint)
 		if(!m_Loaded)
 		{
 			str_format(aBuf, sizeof(aBuf), "themes/%s.map", pMenuMap);
-			if(m_pMap->Load(pMenuMap, Storage(), aBuf, IStorage::TYPE_ALL))
+			if(Storage()->FileExists(aBuf, IStorage::TYPE_ALL) && m_pMap->Load(pMenuMap, Storage(), aBuf, IStorage::TYPE_ALL))
 			{
 				m_Loaded = true;
 			}
@@ -252,7 +252,20 @@ void CMenuBackground::LoadMenuBackground(bool HasDayHint, bool HasNightHint)
 		if(!m_Loaded && ((HasDayHint && !IsDaytime) || (HasNightHint && IsDaytime)))
 		{
 			str_format(aBuf, sizeof(aBuf), "themes/%s_%s.map", pMenuMap, IsDaytime ? "night" : "day");
-			if(m_pMap->Load(pMenuMap, Storage(), aBuf, IStorage::TYPE_ALL))
+			if(Storage()->FileExists(aBuf, IStorage::TYPE_ALL) && m_pMap->Load(pMenuMap, Storage(), aBuf, IStorage::TYPE_ALL))
+			{
+				m_Loaded = true;
+			}
+		}
+
+		if(!m_Loaded)
+		{
+			// Graceful fallback to standard winter_day or heavens_day if custom map is not found
+			if(Storage()->FileExists("themes/winter_day.map", IStorage::TYPE_ALL) && m_pMap->Load("winter", Storage(), "themes/winter_day.map", IStorage::TYPE_ALL))
+			{
+				m_Loaded = true;
+			}
+			else if(Storage()->FileExists("themes/heavens_day.map", IStorage::TYPE_ALL) && m_pMap->Load("heavens", Storage(), "themes/heavens_day.map", IStorage::TYPE_ALL))
 			{
 				m_Loaded = true;
 			}

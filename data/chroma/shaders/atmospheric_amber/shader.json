@@ -1,0 +1,21 @@
+{
+  "name": "Atmospheric Amber Fog",
+  "version": "1.0.0",
+  "author": "chroma.",
+  "description": "Cinematic volumetric lighting with warm dust motes and soft vignette",
+  "vertex_shader": "atmospheric_glow.vert",
+  "fragment_shader": "atmospheric_glow.frag",
+  "defaults": {
+    "u_LightRadius": 0.45,
+    "u_LightIntensity": 1.35,
+    "u_LightColor": [
+      1.0,
+      0.78,
+      0.45
+    ],
+    "u_AmbientDark": 0.12,
+    "u_FogDensity": 0.35,
+    "u_DustIntensity": 0.65,
+    "u_VignettePower": 0.85
+  }
+}

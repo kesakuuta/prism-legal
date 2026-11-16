@@ -34,7 +34,9 @@ enum
 	ASSETS_TAB_PARTICLES = 3,
 	ASSETS_TAB_HUD = 4,
 	ASSETS_TAB_EXTRAS = 5,
-	NUMBER_OF_ASSETS_TABS = 6,
+	ASSETS_TAB_SHADERS = 6,
+	ASSETS_TAB_FONTS = 7,
+	NUMBER_OF_ASSETS_TABS = 8,
 };
 
 void CMenus::LoadEntities(SCustomEntities *pEntitiesItem, void *pUser)
@@ -244,6 +246,8 @@ static const CMenus::SCustomItem *GetCustomItem(int CurTab, size_t Index)
 		return gs_vpSearchHudList[Index];
 	else if(CurTab == ASSETS_TAB_EXTRAS)
 		return gs_vpSearchExtrasList[Index];
+	else if(CurTab == ASSETS_TAB_SHADERS || CurTab == ASSETS_TAB_FONTS)
+		return nullptr;
 	dbg_assert_failed("Invalid CurTab: %d", CurTab);
 }
 
@@ -308,6 +312,14 @@ void CMenus::ClearCustomItems(int CurTab)
 		// reload current DDNet particles skin
 		GameClient()->LoadExtrasSkin(g_Config.m_ClAssetExtras);
 	}
+	else if(CurTab == ASSETS_TAB_SHADERS)
+	{
+		GameClient()->m_ChromaShaders.ScanShaders();
+	}
+	else if(CurTab == ASSETS_TAB_FONTS)
+	{
+		TextRender()->LoadFonts();
+	}
 	else
 	{
 		dbg_assert_failed("Invalid CurTab: %d", CurTab);
@@ -351,6 +363,140 @@ static int InitSearchList(std::vector<const TName *> &vpSearchList, std::vector<
 	return vAssetList.size();
 }
 
+void CMenus::RenderSettingsShaders(CUIRect View)
+{
+	CUIRect LeftPane, RightPane;
+	View.VSplitMid(&LeftPane, &RightPane, 20.0f);
+
+	// Left Pane: Controls & Shader selection
+	CUIRect EnableBtn, ListArea;
+	LeftPane.HSplitTop(26.0f, &EnableBtn, &ListArea);
+	if(DoButton_CheckBox(&g_Config.m_ChromaShaders, Localize("Enable post-processing shaders"), g_Config.m_ChromaShaders, &EnableBtn))
+	{
+		g_Config.m_ChromaShaders ^= 1;
+	}
+
+	ListArea.HSplitTop(12.0f, nullptr, &ListArea);
+
+	const auto &Shaders = GameClient()->m_ChromaShaders.ShaderList();
+	for(size_t i = 0; i < Shaders.size(); ++i)
+	{
+		CUIRect Item;
+		ListArea.HSplitTop(34.0f, &Item, &ListArea);
+		ListArea.HSplitTop(4.0f, nullptr, &ListArea);
+
+		bool IsActive = ((int)i == GameClient()->m_ChromaShaders.ActiveShaderIndex());
+		if(IsActive)
+			Item.Draw(ColorRGBA(0.35f, 0.65f, 1.0f, 0.25f), IGraphics::CORNER_ALL, 6.0f);
+
+		static CButtonContainer s_ShaderBtns[16];
+		char aLabel[128];
+		str_format(aLabel, sizeof(aLabel), "%s (%s)", Shaders[i].m_aName, Shaders[i].m_aAuthor);
+		if(DoButton_Menu(&s_ShaderBtns[i % 16], aLabel, 0, &Item, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f)))
+		{
+			GameClient()->m_ChromaShaders.SelectShader(i);
+		}
+	}
+
+	// Right Pane: Sliders for atmospheric amber
+	const auto *pActive = GameClient()->m_ChromaShaders.ActiveShader();
+	if(pActive)
+	{
+		CUIRect Title, Desc, Sliders;
+		RightPane.HSplitTop(24.0f, &Title, &RightPane);
+		Ui()->DoLabel(&Title, pActive->m_aName, 18.0f, TEXTALIGN_ML);
+
+		RightPane.HSplitTop(20.0f, &Desc, &Sliders);
+		TextRender()->TextColor(ColorRGBA(0.7f, 0.7f, 0.75f, 0.9f));
+		Ui()->DoLabel(&Desc, pActive->m_aDescription, 12.0f, TEXTALIGN_ML);
+		TextRender()->TextColor(TextRender()->DefaultTextColor());
+
+		Sliders.HSplitTop(10.0f, nullptr, &Sliders);
+
+		auto RenderSlider = [this](CUIRect &Area, const char *pName, float Val, float Min, float Max, auto Setter) {
+			CUIRect Row, Label, Slider;
+			Area.HSplitTop(28.0f, &Row, &Area);
+			Row.VSplitLeft(160.0f, &Label, &Slider);
+			char aBuf[64];
+			str_format(aBuf, sizeof(aBuf), "%s: %.2f", Localize(pName), Val);
+			Ui()->DoLabel(&Label, aBuf, 13.0f, TEXTALIGN_ML);
+			float Normalized = (Val - Min) / (Max - Min);
+			static int s_DummyId = 0;
+			float NewNorm = DoScrollbarH(&s_DummyId, &Slider, Normalized);
+			if(NewNorm != Normalized)
+			{
+				Setter(Min + NewNorm * (Max - Min));
+			}
+		};
+
+		RenderSlider(Sliders, "Light radius", GameClient()->m_ChromaShaders.GetLightRadius(), 0.15f, 1.0f, [this](float v){ GameClient()->m_ChromaShaders.SetLightRadius(v); });
+		RenderSlider(Sliders, "Light intensity", GameClient()->m_ChromaShaders.GetLightIntensity(), 0.5f, 3.0f, [this](float v){ GameClient()->m_ChromaShaders.SetLightIntensity(v); });
+		RenderSlider(Sliders, "Fog density", GameClient()->m_ChromaShaders.GetFogDensity(), 0.0f, 1.0f, [this](float v){ GameClient()->m_ChromaShaders.SetFogDensity(v); });
+		RenderSlider(Sliders, "Dust motes", GameClient()->m_ChromaShaders.GetDustIntensity(), 0.0f, 2.0f, [this](float v){ GameClient()->m_ChromaShaders.SetDustIntensity(v); });
+		RenderSlider(Sliders, "Vignette power", GameClient()->m_ChromaShaders.GetVignettePower(), 0.0f, 2.0f, [this](float v){ GameClient()->m_ChromaShaders.SetVignettePower(v); });
+
+		Sliders.HSplitTop(12.0f, nullptr, &Sliders);
+		CUIRect ResetBtn;
+		Sliders.HSplitTop(26.0f, &ResetBtn, &Sliders);
+		ResetBtn.VSplitLeft(160.0f, &ResetBtn, nullptr);
+		static CButtonContainer s_ResetShadersId;
+		if(DoButton_Menu(&s_ResetShadersId, Localize("Reset defaults"), 0, &ResetBtn, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.35f)))
+		{
+			GameClient()->m_ChromaShaders.ResetToDefaults();
+		}
+	}
+}
+
+void CMenus::RenderSettingsFonts(CUIRect View)
+{
+	CUIRect LeftPane, RightPane;
+	View.VSplitMid(&LeftPane, &RightPane, 20.0f);
+
+	// Font list
+	const char *apFonts[] = {"DejaVu Sans", "Pixelify Sans", "Manrope Medium", "Unbounded ExtraBold"};
+	const char *apFontDesc[] = {"Default Clean", "Pixel Retro Aesthetic", "Modern Smooth UI", "Bold Stylized Display"};
+
+	for(size_t i = 0; i < 4; ++i)
+	{
+		CUIRect Item, Name, Desc;
+		LeftPane.HSplitTop(42.0f, &Item, &LeftPane);
+		LeftPane.HSplitTop(6.0f, nullptr, &LeftPane);
+
+		Item.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.35f), IGraphics::CORNER_ALL, 8.0f);
+		RenderTools()->DrawRoundRectOutline(&Item, ColorRGBA(1.0f, 1.0f, 1.0f, 0.20f), 8.0f, 1.0f);
+
+		Item.Margin(6.0f, &Item);
+		Item.HSplitTop(18.0f, &Name, &Desc);
+		Ui()->DoLabel(&Name, apFonts[i], 14.0f, TEXTALIGN_ML);
+		TextRender()->TextColor(ColorRGBA(0.65f, 0.65f, 0.70f, 0.85f));
+		Ui()->DoLabel(&Desc, apFontDesc[i], 11.0f, TEXTALIGN_ML);
+		TextRender()->TextColor(TextRender()->DefaultTextColor());
+	}
+
+	// Live Preview in Right Pane
+	RightPane.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.40f), IGraphics::CORNER_ALL, 10.0f);
+	RenderTools()->DrawRoundRectOutline(&RightPane, ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f), 10.0f, 1.0f);
+	RightPane.Margin(16.0f, &RightPane);
+
+	CUIRect HeaderLabel, Sample1, Sample2, Sample3;
+	RightPane.HSplitTop(26.0f, &HeaderLabel, &RightPane);
+	Ui()->DoLabel(&HeaderLabel, Localize("Live Font Preview"), 18.0f, TEXTALIGN_ML);
+
+	RightPane.HSplitTop(16.0f, nullptr, &RightPane);
+	RightPane.HSplitTop(30.0f, &Sample1, &RightPane);
+	Ui()->DoLabel(&Sample1, "The quick brown fox jumps over the lazy dog! 1234567890", 14.0f, TEXTALIGN_ML);
+
+	RightPane.HSplitTop(10.0f, nullptr, &RightPane);
+	RightPane.HSplitTop(30.0f, &Sample2, &RightPane);
+	Ui()->DoLabel(&Sample2, "Съешь же ещё этих мягких французских булок, да выпей чаю.", 14.0f, TEXTALIGN_ML);
+
+	RightPane.HSplitTop(10.0f, nullptr, &RightPane);
+	RightPane.HSplitTop(30.0f, &Sample3, &RightPane);
+	TextRender()->TextColor(ColorRGBA(0.45f, 0.75f, 1.0f, 1.0f));
+	Ui()->DoLabel(&Sample3, "chroma. 20.3 • High Performance Client", 15.0f, TEXTALIGN_ML);
+	TextRender()->TextColor(TextRender()->DefaultTextColor());
+}
+
 void CMenus::RenderSettingsAssets(CUIRect MainView)
 {
 	CUIRect TabBar, CustomList, QuickSearch, DirectoryButton, ReloadButton;
@@ -364,7 +510,9 @@ void CMenus::RenderSettingsAssets(CUIRect MainView)
 		Localize("Emoticons"),
 		Localize("Particles"),
 		Localize("HUD"),
-		Localize("Extras")};
+		Localize("Extras"),
+		Localize("Shaders"),
+		Localize("Fonts")};
 
 	for(int Tab = ASSETS_TAB_ENTITIES; Tab < NUMBER_OF_ASSETS_TABS; ++Tab)
 	{
@@ -420,6 +568,10 @@ void CMenus::RenderSettingsAssets(CUIRect MainView)
 	{
 		InitAssetList(m_vExtrasList, "assets/extras", "extras", ExtrasScan, Graphics(), Storage(), &User);
 	}
+	else if(s_CurCustomTab == ASSETS_TAB_SHADERS || s_CurCustomTab == ASSETS_TAB_FONTS)
+	{
+		// Shaders and Fonts tabs use dedicated views
+	}
 	else
 	{
 		dbg_assert_failed("Invalid s_CurCustomTab: %d", s_CurCustomTab);
@@ -427,8 +579,20 @@ void CMenus::RenderSettingsAssets(CUIRect MainView)
 
 	MainView.HSplitTop(10.0f, nullptr, &MainView);
 
-	// skin selector
-	MainView.HSplitTop(MainView.h - 10.0f - ms_ButtonHeight, &CustomList, &MainView);
+	if(s_CurCustomTab == ASSETS_TAB_SHADERS)
+	{
+		MainView.HSplitTop(MainView.h - 10.0f - ms_ButtonHeight, &CustomList, &MainView);
+		RenderSettingsShaders(CustomList);
+	}
+	else if(s_CurCustomTab == ASSETS_TAB_FONTS)
+	{
+		MainView.HSplitTop(MainView.h - 10.0f - ms_ButtonHeight, &CustomList, &MainView);
+		RenderSettingsFonts(CustomList);
+	}
+	else
+	{
+		// skin selector
+		MainView.HSplitTop(MainView.h - 10.0f - ms_ButtonHeight, &CustomList, &MainView);
 	if(gs_aInitCustomList[s_CurCustomTab])
 	{
 		int ListSize = 0;
@@ -603,6 +767,7 @@ void CMenus::RenderSettingsAssets(CUIRect MainView)
 			}
 		}
 	}
+	}
 
 	// Quick search
 	MainView.HSplitBottom(ms_ButtonHeight, &MainView, &QuickSearch);
@@ -634,6 +799,10 @@ void CMenus::RenderSettingsAssets(CUIRect MainView)
 			str_copy(aBufFull, "assets/hud");
 		else if(s_CurCustomTab == ASSETS_TAB_EXTRAS)
 			str_copy(aBufFull, "assets/extras");
+		else if(s_CurCustomTab == ASSETS_TAB_SHADERS)
+			str_copy(aBufFull, "chroma/shaders");
+		else if(s_CurCustomTab == ASSETS_TAB_FONTS)
+			str_copy(aBufFull, "fonts");
 		Storage()->GetCompletePath(IStorage::TYPE_SAVE, aBufFull, aBuf, sizeof(aBuf));
 		Storage()->CreateFolder("assets", IStorage::TYPE_SAVE);
 		Storage()->CreateFolder(aBufFull, IStorage::TYPE_SAVE);

@@ -1439,7 +1439,8 @@ void CServerBrowser::LoadDDNetLocation()
 		const json_value &Location = (*m_pDDNetInfo)["location"];
 		if(Location.type != json_string || CServerInfo::ParseLocation(&m_OwnLocation, Location))
 		{
-			log_error("serverbrowser", "invalid location");
+			m_OwnLocation = CServerInfo::LOC_UNKNOWN;
+			log_trace("serverbrowser", "unknown or invalid location from info server");
 		}
 	}
 }

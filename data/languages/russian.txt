@@ -2723,3 +2723,36 @@ not bound
 
 Show cursor
 == 
+
+Shaders
+== Шейдеры
+
+Fonts
+== Шрифты
+
+Enable post-processing shaders
+== Включить шейдеры
+
+Light radius
+== Радиус света
+
+Light intensity
+== Интенсивность света
+
+Fog density
+== Плотность тумана
+
+Dust motes
+== Парящие пылинки
+
+Vignette power
+== Сила виньетки
+
+Reset defaults
+== Сбросить настройки
+
+Live Font Preview
+== Предпросмотр шрифта
+
+Music
+== Музыка

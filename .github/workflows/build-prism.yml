@@ -130,14 +130,6 @@ jobs:
           path: dist/Prism
           if-no-files-found: error
 
-      - name: Publish Windows Release Asset
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/chroma.-Windows-x64.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   build-linux:
     name: Linux Client (x86_64)
     runs-on: ubuntu-latest
@@ -225,10 +217,57 @@ jobs:
           path: dist/Prism
           if-no-files-found: error
 
-      - name: Publish Linux Release Asset
-        if: startsWith(github.ref, 'refs/tags/')
+  release:
+    name: Automatic GitHub Release
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: chroma.-Windows-x64
+          path: artifacts/Prism-Windows
+
+      - name: Download Linux Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: chroma.-Linux-x86_64
+          path: artifacts/Prism-Linux
+
+      - name: Package Release Archives
+        run: |
+          mkdir -p release-assets
+          cd artifacts/Prism-Windows
+          zip -r ../../release-assets/chroma.-Windows-x64.zip .
+          cd ../../artifacts/Prism-Linux
+          tar -czvf ../../release-assets/chroma.-Linux-x86_64.tar.gz .
+          cd ../..
+
+      - name: Determine Release Tag
+        id: vars
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG_NAME="${{ github.ref_name }}"
+          else
+            TAG_NAME="v1.0.7"
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "release_name=chroma. $TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Publish Automated Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/chroma.-Linux-x86_64.tar.gz
+          tag_name: ${{ steps.vars.outputs.tag_name }}
+          name: ${{ steps.vars.outputs.release_name }}
+          files: |
+            release-assets/chroma.-Windows-x64.zip
+            release-assets/chroma.-Linux-x86_64.tar.gz
+          generate_release_notes: true
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1291,7 +1291,7 @@ public:
 			Success = false;
 		}
 
-		// extract language variant family names
+		// extract language variant family names (optional)
 		const json_value &Variants = (*pJsonData)["language variants"];
 		if(Variants.type == json_object)
 		{
@@ -1301,8 +1301,7 @@ public:
 				const json_value *pFamilyName = Variants.u.object.values[i].value;
 				if(pFamilyName->type != json_string)
 				{
-					log_error("textrender", "Font index malformed: 'language variants' entries must have string values (error on entry '%s')", Variants.u.object.values[i].name);
-					Success = false;
+					log_warn("textrender", "Font index: 'language variants' entry '%s' must have string value", Variants.u.object.values[i].name);
 					continue;
 				}
 
@@ -1312,10 +1311,9 @@ public:
 				m_vVariants.emplace_back(Variant);
 			}
 		}
-		else
+		else if(Variants.type != json_none && Variants.type != json_null)
 		{
-			log_error("textrender", "Font index malformed: 'language variants' must be an array");
-			Success = false;
+			log_warn("textrender", "Font index: 'language variants' must be an object if present");
 		}
 
 		// extract fallback family names

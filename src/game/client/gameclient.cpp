@@ -149,6 +149,7 @@ void CGameClient::OnConsoleInit()
 					      &m_Particles.m_RenderGeneral,
 					      &m_FreezeBars,
 					      &m_DamageInd,
+					      &m_ChromaShaders,
 					      &m_Hud,
 					      &m_Spectator,
 					      &m_Emoticon,
@@ -162,6 +163,7 @@ void CGameClient::OnConsoleInit()
 					      &m_Statboard,
 					      &m_Motd,
 					      &m_Menus,
+					      &m_ChromaMusicPlayer,
 					      &m_KeyBinder,
 					      &m_GameConsole,
 					      &m_MenuBackground});
