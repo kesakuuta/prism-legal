@@ -1,5 +1,7 @@
 #include "chroma_shaders.h"
 
+#include <base/log.h>
+#include <base/system.h>
 #include <GL/glew.h>
 #include <engine/graphics.h>
 #include <engine/storage.h>
@@ -365,10 +367,10 @@ void CChromaShaders::OnRender()
 
 	// Calculate normalized local player position [0, 1] on screen
 	vec2 PlayerPosNorm(0.5f, 0.5f);
-	if(m_pClient->m_Snap.m_pLocalCharacter)
+	if(GameClient()->m_Snap.m_pLocalCharacter)
 	{
 		// Target local Tee position in screen space
-		vec2 TeePos = m_pClient->m_Controls.m_aTargetPos[0];
+		vec2 TeePos = GameClient()->m_Controls.m_aTargetPos[0];
 		PlayerPosNorm.x = std::clamp((TeePos.x / (float)Width) + 0.5f, 0.0f, 1.0f);
 		PlayerPosNorm.y = std::clamp((TeePos.y / (float)Height) + 0.5f, 0.0f, 1.0f);
 	}
