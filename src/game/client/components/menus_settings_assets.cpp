@@ -422,7 +422,7 @@ void CMenus::RenderSettingsShaders(CUIRect View)
 			Ui()->DoLabel(&Label, aBuf, 13.0f, TEXTALIGN_ML);
 			float Normalized = (Val - Min) / (Max - Min);
 			static int s_DummyId = 0;
-			float NewNorm = DoScrollbarH(&s_DummyId, &Slider, Normalized);
+			float NewNorm = Ui()->DoScrollbarH(&s_DummyId, &Slider, Normalized);
 			if(NewNorm != Normalized)
 			{
 				Setter(Min + NewNorm * (Max - Min));
@@ -462,8 +462,10 @@ void CMenus::RenderSettingsFonts(CUIRect View)
 		LeftPane.HSplitTop(42.0f, &Item, &LeftPane);
 		LeftPane.HSplitTop(6.0f, nullptr, &LeftPane);
 
-		Item.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.35f), IGraphics::CORNER_ALL, 8.0f);
-		RenderTools()->DrawRoundRectOutline(&Item, ColorRGBA(1.0f, 1.0f, 1.0f, 0.20f), 8.0f, 1.0f);
+		CUIRect InnerItem = Item;
+		InnerItem.Margin(1.0f, &InnerItem);
+		Item.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.20f), IGraphics::CORNER_ALL, 8.0f);
+		InnerItem.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.35f), IGraphics::CORNER_ALL, 7.0f);
 
 		Item.Margin(6.0f, &Item);
 		Item.HSplitTop(18.0f, &Name, &Desc);
@@ -474,8 +476,10 @@ void CMenus::RenderSettingsFonts(CUIRect View)
 	}
 
 	// Live Preview in Right Pane
-	RightPane.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.40f), IGraphics::CORNER_ALL, 10.0f);
-	RenderTools()->DrawRoundRectOutline(&RightPane, ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f), 10.0f, 1.0f);
+	CUIRect InnerRP = RightPane;
+	InnerRP.Margin(1.0f, &InnerRP);
+	RightPane.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f), IGraphics::CORNER_ALL, 10.0f);
+	InnerRP.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.40f), IGraphics::CORNER_ALL, 9.0f);
 	RightPane.Margin(16.0f, &RightPane);
 
 	CUIRect HeaderLabel, Sample1, Sample2, Sample3;

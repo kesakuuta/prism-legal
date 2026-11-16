@@ -370,7 +370,6 @@ void CChromaMenu::Render(CGameClient *pGameClient, CUIRect MainView)
 	// 3. Render Buttons with Auto-Fit Text
 	const float BaseX = Screen.x + Screen.w * s_ActiveTheme.m_MenuX;
 	float CurY = Screen.y + Screen.h * s_ActiveTheme.m_MenuY;
-	const float Dt = std::clamp(pGameClient->Client()->RenderFrameTime(), 0.001f, 0.1f);
 	const bool IsRu = g_Config.m_ChromaLanguage == 1;
 
 	for(size_t i = 0; i < s_ActiveTheme.m_vButtons.size(); ++i)
@@ -472,7 +471,7 @@ void CChromaMenu::Render(CGameClient *pGameClient, CUIRect MainView)
 	}
 
 	// 4. Watermark & Escape key handling (guarded against ClickGUI conflict)
-	if(!pGameClient->m_Menus.IsPrismOpen() && pGameClient->m_Menus.m_PrismTransition <= 0.01f && !pGameClient->Ui()->IsPopupOpen())
+	if(!pGameClient->m_Menus.IsPrismOpen() && !pGameClient->Ui()->IsPopupOpen())
 	{
 		if(pGameClient->Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE))
 		{

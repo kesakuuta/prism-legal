@@ -1,5 +1,7 @@
 #include "chroma_music_player.h"
 
+#include <base/mem.h>
+#include <cstring>
 #include <engine/graphics.h>
 #include <engine/keys.h>
 #include <engine/sound.h>
@@ -264,8 +266,10 @@ void CChromaMusicPlayer::OnRender()
 	WidgetRect.h = PlayerHeight;
 
 	// Dark pill container with crisp white/subtle outline
-	WidgetRect.Draw(ColorRGBA(0.06f, 0.06f, 0.08f, 0.92f), IGraphics::CORNER_ALL, 14.0f);
-	RenderTools()->DrawRoundRectOutline(&WidgetRect, ColorRGBA(0.85f, 0.85f, 0.90f, 0.40f), 14.0f, 1.25f);
+	CUIRect InnerWidget = WidgetRect;
+	InnerWidget.Margin(1.0f, &InnerWidget);
+	WidgetRect.Draw(ColorRGBA(0.85f, 0.85f, 0.90f, 0.40f), IGraphics::CORNER_ALL, 14.0f);
+	InnerWidget.Draw(ColorRGBA(0.06f, 0.06f, 0.08f, 0.92f), IGraphics::CORNER_ALL, 13.0f);
 
 	// Scrubber / Seeker Area (Top portion of widget)
 	CUIRect TopArea, BottomArea;
@@ -403,8 +407,10 @@ void CChromaMusicPlayer::OnRender()
 		PopupRect.x = WidgetRect.x;
 		PopupRect.y = WidgetRect.y - PopupRect.h - 8.0f;
 
-		PopupRect.Draw(ColorRGBA(0.08f, 0.08f, 0.10f, 0.95f), IGraphics::CORNER_ALL, 10.0f);
-		RenderTools()->DrawRoundRectOutline(&PopupRect, ColorRGBA(0.8f, 0.8f, 0.85f, 0.35f), 10.0f, 1.0f);
+		CUIRect InnerPopup = PopupRect;
+		InnerPopup.Margin(1.0f, &InnerPopup);
+		PopupRect.Draw(ColorRGBA(0.8f, 0.8f, 0.85f, 0.35f), IGraphics::CORNER_ALL, 10.0f);
+		InnerPopup.Draw(ColorRGBA(0.08f, 0.08f, 0.10f, 0.95f), IGraphics::CORNER_ALL, 9.0f);
 
 		CUIRect ItemArea = PopupRect;
 		ItemArea.Margin(6.0f, &ItemArea);

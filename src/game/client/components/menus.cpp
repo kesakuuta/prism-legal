@@ -769,8 +769,10 @@ void CMenus::RenderLoadingDirect(const char *pCaption, const char *pContent, std
 
 	// Bar background (black with crisp white outline)
 	Graphics()->TextureClear();
-	BarRect.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.90f), IGraphics::CORNER_ALL, 3.0f);
-	RenderTools()->DrawRoundRectOutline(&BarRect, ColorRGBA(1.0f, 1.0f, 1.0f, 0.85f), 3.0f, 1.0f);
+	CUIRect InnerBar = BarRect;
+	InnerBar.Margin(1.0f, &InnerBar);
+	BarRect.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.85f), IGraphics::CORNER_ALL, 3.0f);
+	InnerBar.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.90f), IGraphics::CORNER_ALL, 2.0f);
 
 	// White progress fill
 	if(Progress.has_value())

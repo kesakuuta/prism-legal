@@ -1,6 +1,7 @@
 #ifndef GAME_CLIENT_COMPONENTS_CHROMA_MUSIC_PLAYER_H
 #define GAME_CLIENT_COMPONENTS_CHROMA_MUSIC_PLAYER_H
 
+#include <engine/sound.h>
 #include <game/client/component.h>
 #include <vector>
 #include <string>
