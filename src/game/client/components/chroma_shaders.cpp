@@ -156,9 +156,9 @@ void CChromaShaders::ScanShaders()
 	IOHANDLE ConfigFile = Storage()->OpenFile("chroma/shaders/atmospheric_amber/shader.json", IOFLAG_READ, IStorage::TYPE_ALL);
 	if(ConfigFile)
 	{
-		io_seek(ConfigFile, 0, IOSEEK_END);
+		io_seek(ConfigFile, 0, EIoSeekOrigin::END);
 		long Size = io_tell(ConfigFile);
-		io_seek(ConfigFile, 0, IOSEEK_START);
+		io_seek(ConfigFile, 0, EIoSeekOrigin::START);
 		if(Size > 0)
 		{
 			std::vector<char> Buffer(Size + 1, 0);
@@ -242,16 +242,16 @@ bool CChromaShaders::CompileActiveShader()
 		return false;
 	}
 
-	io_seek(VertFile, 0, IOSEEK_END);
+	io_seek(VertFile, 0, EIoSeekOrigin::END);
 	long VertSize = io_tell(VertFile);
-	io_seek(VertFile, 0, IOSEEK_START);
+	io_seek(VertFile, 0, EIoSeekOrigin::START);
 	std::vector<char> VertSrc(VertSize + 1, 0);
 	io_read(VertFile, VertSrc.data(), VertSize);
 	io_close(VertFile);
 
-	io_seek(FragFile, 0, IOSEEK_END);
+	io_seek(FragFile, 0, EIoSeekOrigin::END);
 	long FragSize = io_tell(FragFile);
-	io_seek(FragFile, 0, IOSEEK_START);
+	io_seek(FragFile, 0, EIoSeekOrigin::START);
 	std::vector<char> FragSrc(FragSize + 1, 0);
 	io_read(FragFile, FragSrc.data(), FragSize);
 	io_close(FragFile);
