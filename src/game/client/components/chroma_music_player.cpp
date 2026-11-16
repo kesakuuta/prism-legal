@@ -233,7 +233,7 @@ void CChromaMusicPlayer::Seek(float Progress)
 void CChromaMusicPlayer::OnRender()
 {
 	// Only render on start/main menu when offline
-	if(!m_pClient->m_Menus.IsActive() || m_pClient->Client()->State() != IClient::STATE_OFFLINE)
+	if(!GameClient()->m_Menus.IsActive() || Client()->State() != IClient::STATE_OFFLINE)
 		return;
 
 	CUIRect Screen = *Ui()->Screen();
@@ -338,7 +338,7 @@ void CChromaMusicPlayer::OnRender()
 	// 1. Tracklist button
 	CUIRect ListBtn = {CurX, BtnY, BtnW, BtnH};
 	static CButtonContainer s_ListBtnId;
-	if(m_pClient->m_Menus.DoButton_Menu(&s_ListBtnId, FontIcon::LIST_UL, 0, &ListBtn, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f, 0.0f, m_TrackListOpen ? ColorRGBA(0.4f, 0.4f, 0.5f, 0.5f) : ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)))
+	if(GameClient()->m_Menus.DoButton_Menu(&s_ListBtnId, FontIcon::LIST_UL, 0, &ListBtn, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f, 0.0f, m_TrackListOpen ? ColorRGBA(0.4f, 0.4f, 0.5f, 0.5f) : ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)))
 	{
 		m_TrackListOpen = !m_TrackListOpen;
 	}
@@ -348,7 +348,7 @@ void CChromaMusicPlayer::OnRender()
 	// 2. Previous button
 	CUIRect PrevBtn = {CurX, BtnY, BtnW, BtnH};
 	static CButtonContainer s_PrevBtnId;
-	if(m_pClient->m_Menus.DoButton_Menu(&s_PrevBtnId, FontIcon::BACKWARD_STEP, 0, &PrevBtn, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)))
+	if(GameClient()->m_Menus.DoButton_Menu(&s_PrevBtnId, FontIcon::BACKWARD_STEP, 0, &PrevBtn, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)))
 	{
 		PrevTrack();
 	}
@@ -359,7 +359,7 @@ void CChromaMusicPlayer::OnRender()
 	CUIRect PlayBtn = {CurX, BtnY - 2.0f, BtnW + 4.0f, BtnH + 4.0f};
 	static CButtonContainer s_PlayBtnId;
 	const char *pPlayIcon = m_IsPlaying ? FontIcon::PAUSE : FontIcon::PLAY;
-	if(m_pClient->m_Menus.DoButton_Menu(&s_PlayBtnId, pPlayIcon, 0, &PlayBtn, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 12.0f, 0.0f, ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f)))
+	if(GameClient()->m_Menus.DoButton_Menu(&s_PlayBtnId, pPlayIcon, 0, &PlayBtn, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 12.0f, 0.0f, ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f)))
 	{
 		TogglePlay();
 	}
@@ -369,7 +369,7 @@ void CChromaMusicPlayer::OnRender()
 	// 4. Next button
 	CUIRect NextBtn = {CurX, BtnY, BtnW, BtnH};
 	static CButtonContainer s_NextBtnId;
-	if(m_pClient->m_Menus.DoButton_Menu(&s_NextBtnId, FontIcon::FORWARD_STEP, 0, &NextBtn, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)))
+	if(GameClient()->m_Menus.DoButton_Menu(&s_NextBtnId, FontIcon::FORWARD_STEP, 0, &NextBtn, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)))
 	{
 		NextTrack();
 	}
@@ -379,7 +379,7 @@ void CChromaMusicPlayer::OnRender()
 	// 5. Shuffle button
 	CUIRect ShuffleBtn = {CurX, BtnY, BtnW, BtnH};
 	static CButtonContainer s_ShuffleBtnId;
-	if(m_pClient->m_Menus.DoButton_Menu(&s_ShuffleBtnId, FontIcon::ARROWS_LEFT_RIGHT, 0, &ShuffleBtn, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f, 0.0f, m_Shuffle ? ColorRGBA(0.35f, 0.65f, 1.0f, 0.40f) : ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)))
+	if(GameClient()->m_Menus.DoButton_Menu(&s_ShuffleBtnId, FontIcon::ARROWS_LEFT_RIGHT, 0, &ShuffleBtn, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f, 0.0f, m_Shuffle ? ColorRGBA(0.35f, 0.65f, 1.0f, 0.40f) : ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)))
 	{
 		m_Shuffle = !m_Shuffle;
 	}
@@ -389,7 +389,7 @@ void CChromaMusicPlayer::OnRender()
 	// 6. Repeat button
 	CUIRect RepeatBtn = {CurX, BtnY, BtnW, BtnH};
 	static CButtonContainer s_RepeatBtnId;
-	if(m_pClient->m_Menus.DoButton_Menu(&s_RepeatBtnId, FontIcon::ARROWS_ROTATE, 0, &RepeatBtn, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f, 0.0f, m_Repeat ? ColorRGBA(0.35f, 0.65f, 1.0f, 0.40f) : ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)))
+	if(GameClient()->m_Menus.DoButton_Menu(&s_RepeatBtnId, FontIcon::ARROWS_ROTATE, 0, &RepeatBtn, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f, 0.0f, m_Repeat ? ColorRGBA(0.35f, 0.65f, 1.0f, 0.40f) : ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)))
 	{
 		m_Repeat = !m_Repeat;
 	}
@@ -423,7 +423,7 @@ void CChromaMusicPlayer::OnRender()
 			char aItemLabel[128];
 			str_format(aItemLabel, sizeof(aItemLabel), "%d. %s - %s", (int)i + 1, m_vTracks[i].m_aTitle, m_vTracks[i].m_aArtist);
 
-			if(m_pClient->m_Menus.DoButton_Menu(&s_TrackItemIds[i % 64], aItemLabel, 0, &TrackItem, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 4.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)))
+			if(GameClient()->m_Menus.DoButton_Menu(&s_TrackItemIds[i % 64], aItemLabel, 0, &TrackItem, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 4.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)))
 			{
 				SetTrack(i);
 				m_TrackListOpen = false;
