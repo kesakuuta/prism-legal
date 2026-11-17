@@ -14,7 +14,7 @@
 
 <br>
 
-[![Release](https://img.shields.io/badge/Release-v1.0.7-8A2BE2?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kesakuuta/prism-legal/releases/tag/v1.0.7)
+[![Release](https://img.shields.io/badge/Release-v1.0.8-8A2BE2?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kesakuuta/prism-legal/releases/tag/v1.0.8)
 [![Base](https://img.shields.io/badge/DDNet-20.3-00C853?style=for-the-badge&logo=cplusplus&logoColor=white)](https://github.com/ddnet/ddnet)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/kesakuuta/prism-legal/releases)
 [![Fair Play](https://img.shields.io/badge/Fair--Play-100%25%20Legal-FFD700?style=for-the-badge&logo=shield&logoColor=black)](https://github.com/kesakuuta/prism-legal)
@@ -22,7 +22,7 @@
 
 <br>
 
-[✨ Особенности](#-ключевые-особенности) • [📥 Скачать](#-установка-и-запуск) • [🎨 Создание тем](#-создание-собственных-тем) • [🔮 Шейдеры](#-шейдеры-и-пост-процессинг) • [🎵 Музыка](#-музыкальный-плеер-в-меню) • [🚀 Лаунчер](#-нативный-лаунчер-rust) • [⌨️ Управление](#️-горячие-клавиши) • [🛠️ Сборка](#️-сборка-из-исходников) • [English](#-english-summary)
+[✨ Особенности](#-ключевые-особенности) • [📥 Скачать](#-установка-и-запуск) • [🎨 Создание тем](#-создание-собственных-тем) • [🔮 Шейдеры](#-шейдеры-и-пост-процессинг) • [🎵 Музыка](#-музыка-в-меню) • [🚀 Лаунчер](#-нативный-лаунчер-rust) • [⌨️ Управление](#️-горячие-клавиши) • [🛠️ Сборка](#️-сборка-из-исходников) • [English](#-english-summary)
 
 ---
 
@@ -93,16 +93,17 @@
 
 Готовые оптимизированные сборки доступны для **Windows** и **Linux**.
 
-| Платформа | Архитектура | Формат | Ссылка на скачивание |
-| :--- | :---: | :---: | :--- |
-| **Windows** | `x86_64` | `.zip` | [📥 **Скачать chroma. v1.0.7 (Windows)**](https://github.com/kesakuuta/prism-legal/releases/download/v1.0.7/chroma.-Windows-x64.zip) |
-| **Linux** | `x86_64` | `.tar.gz` | [📥 **Скачать chroma. v1.0.7 (Linux)**](https://github.com/kesakuuta/prism-legal/releases/download/v1.0.7/chroma.-Linux-x86_64.tar.gz) |
+| Платформа | Архитектура | Формат | Содержимое | Ссылка на скачивание |
+| :--- | :---: | :---: | :--- | :--- |
+| **Windows** | `x86_64` | `.zip` | Клиент `chroma.exe` + Лаунчер + Сервер + Все ассеты | [📥 **chroma.-Windows-x64.zip**](https://github.com/kesakuuta/prism-legal/releases/download/v1.0.8/chroma.-Windows-x64.zip) |
+| **Windows** | `x86_64` | `.exe` | Отдельный бинарник лаунчера | [📥 **chroma-launcher.exe**](https://github.com/kesakuuta/prism-legal/releases/download/v1.0.8/chroma-launcher.exe) |
+| **Linux** | `x86_64` | `.tar.gz` | Клиент `chroma` + Сервер + Все ассеты | [📥 **chroma.-Linux-x86_64.tar.gz**](https://github.com/kesakuuta/prism-legal/releases/download/v1.0.8/chroma.-Linux-x86_64.tar.gz) |
 
 > [!TIP]
 > **Быстрый старт на Windows:**
 > 1. Скачайте архив `chroma.-Windows-x64.zip`.
-> 2. Распакуйте папку в любое удобное место (например, на рабочий стол или диск `D:\Games\chroma`).
-> 3. Запустите файл `chroma.exe`.
+> 2. Распакуйте архив в любую удобную папку (например, `D:\Games\chroma`).
+> 3. Запустите лаунчер `chroma-launcher.exe` (или напрямую клиент `chroma.exe`). Лаунчер автоматически найдёт клиент и позволит удобно управлять темами, шейдерами и настройками!
 
 <br>
 
@@ -110,7 +111,12 @@
 
 ## 🎨 Создание собственных тем
 
-Клиент позволяет создать собственную тему за пару минут. Все темы хранятся в папке:
+Клиент поставляется с тремя готовыми эстетичными темами:
+* **`chroma_dark`** — ультраминималистичный тёмный шёлк с глубоким контрастом.
+* **`chroma_light`** — элегантный светлый шёлк со строгой темной типографикой.
+* **`minecraft_sakura`** — живописная цветущая сакура из Minecraft.
+
+Все темы хранятся в папке:
 ```
 data/chroma/themes/<название_темы>/
 ```
@@ -134,10 +140,12 @@ data/chroma/themes/cyberpunk/
   "font_file": "fonts/cyber.ttf",
   "background": "background.png",
   "greeting": "Hello, {player}",
+  "buttons": ["play", "editor", "demos", "server", "settings", "skins", "quit"],
   "menu": {
     "play": "Начать игру",
     "editor": "Редактор карт",
     "demos": "Демозаписи",
+    "server": "Запустить сервер",
     "settings": "Настройки",
     "skins": "Гардероб",
     "quit": "Выход"
@@ -151,8 +159,9 @@ data/chroma/themes/cyberpunk/
 ```
 
 > [!NOTE]
-> В строке `"greeting"` переменная `{player}` автоматически подставляет текущий игровой никнейм!  
-> В меню настроек `chroma.` перейдите во вкладку **«Темы»** и нажмите **«Сканировать темы с диска»** — ваша тема сразу появится в списке.
+> * В поле `"buttons"` можно настроить список кнопок главного меню, включая встроенную кнопку локального сервера `"server"` («Запустить сервер»).
+> * В строке `"greeting"` переменная `{player}` автоматически подставляет текущий игровой никнейм!  
+> * В меню настроек `chroma.` перейдите во вкладку **«Темы»** и нажмите **«Сканировать темы с диска»** — ваша тема сразу появится в списке.
 
 <br>
 
@@ -168,9 +177,16 @@ data/chroma/themes/cyberpunk/
 
 <br>
 
+### 🛠️ Инструкция по созданию собственного шейдерпака:
+
+1. **Создайте папку:** перейдите в `data/chroma/shaders/` и создайте новую папку с названием вашего шейдера (например, `my_shader`).
+2. **Создайте файл манифеста `shader.json`:** укажите имена файлов вертексного и фрагментного шейдеров, а также значения по умолчанию для параметров.
+3. **Создайте вертексный шейдер (`.vert`):** стандартный полноэкранный квад (Fullscreen Quad). Рекомендуется использовать директиву `#version 130` для гарантированной совместимости со всеми поколениями видеокарт.
+4. **Создайте фрагментный шейдер (`.frag`):** сэмплируйте сцену игры из `u_ScreenTexture` и накладывайте любые эффекты (радиальный свет от игрока, туман, виньетку, цветокоррекцию).
+5. **Проверка в игре:** откройте **Настройки -> Ассеты -> Шейдеры** и выберите ваш шейдер из списка.
+
 ### 📁 Структура папки шейдерпака:
 
-Каждый шейдерпак находится в `data/chroma/shaders/<название_шейдера>/`:
 ```text
 data/chroma/shaders/atmospheric_amber/
 ├── atmospheric_glow.vert  # Вершинный шейдер (Fullscreen Quad)
@@ -201,7 +217,7 @@ data/chroma/shaders/atmospheric_amber/
 
 ### 📐 Контракт Uniform-переменных (GLSL Contract):
 
-Движок `chroma.` передает во фрагментный шейдер следующие переменные:
+Движок `chroma.` автоматически передает во фрагментный шейдер следующие переменные:
 
 | Uniform | Тип | Диапазон | Описание |
 | :--- | :--- | :--- | :--- |
@@ -221,15 +237,12 @@ data/chroma/shaders/atmospheric_amber/
 
 ---
 
-## 🎵 Музыкальный плеер в меню
+## 🎵 Музыка в меню
 
-В правом нижнем углу главного меню встроен стильный компактный виджет аудиоплеера:
-- **Управление:** `Play/Pause`, предыдущий и следующий треки, случайный порядок (`Shuffle`), повтор (`Repeat`).
-- **Интерактивный скруббер:** плавная перемотка трека мышью в реальном времени.
-- **Список воспроизведения:** выпадающий список треков по нажатию на иконку списка.
-- **Громкость:** привязана к глобальному регулятору громкости звуков игры (**Настройки -> Звуки**).
-- **Поддержка форматов:** высококачественные аудиофайлы `.wv` (WavPack) и `.opus` (Opus).
-- **Добавление треков:** просто скопируйте ваши треки в формате `Исполнитель - Название.wv` или `Название.opus` в папку `data/audio/music/`.
+Фоновое аудио сопровождение главного меню воспроизводится через нативную высокопроизводительную звуковую подсистему игры:
+- **Штатный трек:** `data/audio/music_menu.wv` (формат WavPack).
+- **Как заменить музыку:** сконвертируйте любой свой любимый трек в формат `.wv` (WavPack) и поместите его в папку клиента по пути `data/audio/music_menu.wv`.
+- **Настройка громкости:** регулируется в меню **Настройки -> Звуки** (ползунок «Громкость музыки»). Музыка воспроизводится циклично при нахождении в главном меню.
 
 <br>
 
@@ -237,22 +250,19 @@ data/chroma/shaders/atmospheric_amber/
 
 ## 🚀 Нативный лаунчер (Rust)
 
-Для удобного запуска клиента, быстрого переключения тем, шейдерпаков, шрифтов и управления ассетами разработан легковесный нативный лаунчер на **Rust**.
-
-> [!NOTE]
-> Код лаунчера расположен в приватной ветке разработки **`dev`** в директории `launcher/`.
+Для удобного запуска клиента, быстрого переключения тем, шейдерпаков, шрифтов и управления ассетами в корень дистрибутива включён легковесный нативный лаунчер **`chroma-launcher.exe`**, написанный на **Rust**.
 
 ### Возможности лаунчера:
-- **Заставка «chroma.»** при старте лаунчера.
-- **Верхняя навигация:** Темы, Шейдеры, Шрифты, Музыка, Ассеты.
-- **Категории ассетов DDNet:** сущности (Entities), игровой процесс (Game), эмотиконы (Emoticons), частицы (Particles), HUD, экстра (Extras).
-- **Настройки:**
-  - Переключатель языка (Русский / English) — в самом верху настроек.
+- **Интерфейс в стиле Horizon:** эстетичная splash-заставка `CHROMA` при старте, левая панель со сборками, аккуратная нижняя строка с кнопкой «Играть», выбором версии и кнопкой перехода в папку игры.
+- **Верхняя навигация:** Темы, Шейдеры, Шрифты, Ассеты.
+- **Категории ассетов DDNet:** Сущности (Entities), Игра (Game), Эмотиконы (Emoticons), Частицы (Particles), HUD, Экстра (Extras).
+- **Автоопределение клиента:** лаунчер находится прямо в папке с игрой и автоматически запускает `chroma.exe`.
+- **Настройки лаунчера:**
+  - Переключатель языка (**Русский** / **English**) на первой позиции настроек.
   - Персонализация фона: выбор собственного изображения PNG/JPG/WebP с режимами `fill`, `fit`, `stretch`, `center`.
-  - Автоматическая адаптация цвета текста под яркость фонового изображения.
+  - Автоматическая адаптация контраста цвета текста под яркость фонового изображения.
   - Поведение при старте игры: сворачивать лаунчер или оставлять открытым.
-  - Путь к исполняемому файлу клиента (`Prism.exe` / `chroma.exe`).
-- **Кнопка «Играть»:** мгновенный запуск оптимизированного бинарника клиента с проверкой целостности.
+- **Кнопка «Играть»:** мгновенный запуск бинарника `chroma.exe`.
 
 <br>
 
@@ -319,14 +329,14 @@ make -j$(nproc) chroma.
 
 ### Key Highlights:
 - **Zero Cheats / 100% Legal:** Fully compliant with official DDNet servers. No aimbots, no auto-hook, no prediction cheats.
-- **Custom JSON Theme Engine:** Create or drop themes into `data/chroma/themes/` with custom backgrounds, fonts, and button labels. Includes dynamic background luminance contrast adaptation.
-- **Atmospheric Post-Processing Shaders:** Fullscreen OpenGL 3.3 pipeline with radial player lights, volumetric fBm fog, glittering dust motes, and cinematic vignette. Configure in Settings -> Assets -> Shaders.
-- **In-Menu Music Player:** Floating bottom-right player widget with seek bar, playlist popup, shuffle, and loop. Supports `.wv` and `.opus` in `data/audio/music/`.
+- **Custom JSON Theme Engine:** Bundled with `chroma_dark` (black silk), `chroma_light` (white silk), and `minecraft_sakura`. Supports custom `theme.json` with dynamic background luminance contrast adaptation and integrated "Start Server" main menu action.
+- **Atmospheric Post-Processing Shaders:** Fullscreen OpenGL post-processing pipeline with radial player lights, volumetric fBm fog, glittering dust motes, and cinematic vignette. Configure in Settings -> Assets -> Shaders.
+- **Native Menu Music:** Native looping WavPack music (`data/audio/music_menu.wv`) with volume control in Settings -> Sounds.
 - **Procedural 3D Conical Hat (斗笠):** 64-vertex real-time parametric Asian straw hat with custom fabric/rib colors, rainbow hues, and velocity/aim tilting.
 - **Sleek ClickGUI (`Insert`):** Floating overlay with interactive Color Picker (Hex, RGBA, HSVA) and input shielding.
 - **Modular HUD:** Freely scalable and configurable HUD modules for hotkeys, identity, dummy, and input displays.
-- **Native Rust Launcher:** Available in branch `dev`, with asset managers, DDNet launcher settings, custom backgrounds, and play button.
-- **Bilingual Interface:** Full Russian and English localization.
+- **Native Rust Launcher:** Horizon-inspired design bundled directly in the distribution as `chroma-launcher.exe`. Includes themes, shaders, fonts, DDNet asset manager tabs, custom wallpaper support, and auto-detection of `chroma.exe`.
+- **Bilingual Interface:** Full Russian and English localization across the client, launcher, and menus.
 
 </details>
 
