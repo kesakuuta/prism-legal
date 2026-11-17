@@ -143,7 +143,10 @@ void CSounds::OnRender()
 	if(m_WaitForSoundJob)
 	{
 		if(m_pSoundJob->State() == IJob::STATE_DONE)
+		{
 			m_WaitForSoundJob = false;
+			GameClient()->m_Menus.UpdateMusicState();
+		}
 		else
 			return;
 	}

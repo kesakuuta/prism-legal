@@ -67,6 +67,16 @@ jobs:
       - name: Build chroma. Client & Server
         run: cmake --build build --config Release --target game-client game-server --parallel
 
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Build chroma. Launcher
+        shell: bash
+        run: |
+          cargo build --release --package chroma-launcher
+
       - name: Package Windows Distribution
         shell: pwsh
         run: |
@@ -87,6 +97,17 @@ jobs:
           } else {
             Write-Error "Could not find built client executable!"
             exit 1
+          }
+
+          # Copy built launcher executable
+          if (Test-Path "target/release/chroma-launcher.exe") {
+            Copy-Item "target/release/chroma-launcher.exe" "dist/Prism/chroma-launcher.exe" -Force
+            Copy-Item "target/release/chroma-launcher.exe" "dist/Prism/launcher.exe" -Force
+            Write-Host "Found launcher executable in target/release, copied to dist/Prism"
+          } elseif (Test-Path "launcher/target/release/chroma-launcher.exe") {
+            Copy-Item "launcher/target/release/chroma-launcher.exe" "dist/Prism/chroma-launcher.exe" -Force
+            Copy-Item "launcher/target/release/chroma-launcher.exe" "dist/Prism/launcher.exe" -Force
+            Write-Host "Found launcher executable in launcher/target/release, copied to dist/Prism"
           }
 
           # Find and copy built server executable
@@ -247,6 +268,9 @@ jobs:
           mkdir -p release-assets
           cd artifacts/Prism-Windows
           zip -r ../../release-assets/chroma.-Windows-x64.zip .
+          if [ -f chroma-launcher.exe ]; then
+            cp chroma-launcher.exe ../../release-assets/chroma-launcher.exe
+          fi
           cd ../../artifacts/Prism-Linux
           tar -czvf ../../release-assets/chroma.-Linux-x86_64.tar.gz .
           cd ../..
@@ -257,7 +281,7 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             TAG_NAME="${{ github.ref_name }}"
           else
-            TAG_NAME="v1.0.7"
+            TAG_NAME="v1.0.8"
           fi
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "release_name=chroma. $TAG_NAME" >> $GITHUB_OUTPUT
@@ -270,6 +294,7 @@ jobs:
           files: |
             release-assets/chroma.-Windows-x64.zip
             release-assets/chroma.-Linux-x86_64.tar.gz
+            release-assets/chroma-launcher.exe
           generate_release_notes: true
           draft: false
           prerelease: false

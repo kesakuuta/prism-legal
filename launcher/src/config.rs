@@ -16,57 +16,88 @@ impl Default for BgMode {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ThemeMode {
+    Dark,
+    Light,
+    System,
+}
+
+impl Default for ThemeMode {
+    fn default() -> Self {
+        ThemeMode::Dark
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HorizonTheme {
+    Chroma,
+    FirstLight,
+}
+
+impl Default for HorizonTheme {
+    fn default() -> Self {
+        HorizonTheme::Chroma
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LauncherConfig {
     pub language: Language,
+    pub theme_mode: ThemeMode,
+    pub horizon_theme: HorizonTheme,
+    pub accent_color: [u8; 3],
+    pub glass_opacity: f32,
+    pub blur_radius: f32,
+    pub performance_mode: bool,
     pub background_path: Option<String>,
     pub background_mode: BgMode,
     pub adaptive_text: bool,
-    pub accent_color: [u8; 3],
-    pub glass_opacity: f32,
-    pub vignette: f32,
     pub minimize_on_launch: bool,
+    pub show_splash: bool,
     pub game_path: String,
     pub game_args: String,
-    pub fullscreen: bool,
-    pub show_splash: bool,
     pub selected_theme: String,
     pub selected_shader: String,
     pub selected_font: String,
-    pub selected_track: String,
 }
 
 impl Default for LauncherConfig {
     fn default() -> Self {
         Self {
             language: Language::Russian,
+            theme_mode: ThemeMode::Dark,
+            horizon_theme: HorizonTheme::Chroma,
+            accent_color: [190, 16, 93], // #be105d Horizon crimson
+            glass_opacity: 0.85,
+            blur_radius: 2.0,
+            performance_mode: false,
             background_path: None,
             background_mode: BgMode::Fill,
             adaptive_text: true,
-            accent_color: [190, 24, 93], // #be185d Horizon crimson/rose
-            glass_opacity: 0.85,
-            vignette: 0.40,
             minimize_on_launch: true,
+            show_splash: true,
             game_path: detect_default_game_path(),
             game_args: String::new(),
-            fullscreen: false,
-            show_splash: true,
-            selected_theme: "chrome_sword".to_string(),
+            selected_theme: "chroma_dark".to_string(),
             selected_shader: "atmospheric_amber".to_string(),
             selected_font: "default".to_string(),
-            selected_track: "Leanin' (Slowed)".to_string(),
         }
     }
 }
 
-fn detect_default_game_path() -> String {
+pub fn detect_default_game_path() -> String {
     let candidates = [
-        "Prism.exe",
         "chroma.exe",
+        "Prism.exe",
         "DDNet.exe",
-        "../Prism.exe",
+        "./chroma.exe",
+        "./Prism.exe",
         "../chroma.exe",
+        "../Prism.exe",
+        "../build/x64/Release/chroma.exe",
         "../build/x64/Release/Prism.exe",
+        "../../chroma.exe",
         "../../Prism.exe",
     ];
 
@@ -76,7 +107,7 @@ fn detect_default_game_path() -> String {
         }
     }
 
-    "Prism.exe".to_string()
+    "chroma.exe".to_string()
 }
 
 impl LauncherConfig {

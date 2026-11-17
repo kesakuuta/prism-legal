@@ -163,7 +163,6 @@ void CGameClient::OnConsoleInit()
 					      &m_Statboard,
 					      &m_Motd,
 					      &m_Menus,
-					      &m_ChromaMusicPlayer,
 					      &m_KeyBinder,
 					      &m_GameConsole,
 					      &m_MenuBackground});

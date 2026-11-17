@@ -22,6 +22,8 @@ CChromaShaders::CChromaShaders() :
 	m_QuadVAO(0),
 	m_QuadVBO(0),
 	m_GLInitialized(false),
+	m_CompileAttempted(false),
+	m_CompileFailed(false),
 	m_TexWidth(0),
 	m_TexHeight(0),
 	m_LocScreenTexture(-1),
@@ -205,6 +207,8 @@ void CChromaShaders::SelectShader(int Index)
 
 	m_ActiveShaderIndex = Index;
 	str_copy(g_Config.m_ChromaActiveShader, m_vShaders[Index].m_aName);
+	m_CompileAttempted = false;
+	m_CompileFailed = false;
 	CompileActiveShader();
 }
 
@@ -222,9 +226,20 @@ void CChromaShaders::SelectShaderByName(const char *pName)
 
 bool CChromaShaders::CompileActiveShader()
 {
+	m_CompileAttempted = true;
 	const SShaderPack *pPack = ActiveShader();
 	if(!pPack)
+	{
+		m_CompileFailed = true;
 		return false;
+	}
+
+	if(glCreateShader == nullptr)
+	{
+		m_CompileFailed = true;
+		log_warn("chroma_shaders", "OpenGL shaders not supported on this context/thread");
+		return false;
+	}
 
 	if(m_ProgramId)
 	{
@@ -266,10 +281,11 @@ bool CChromaShaders::CompileActiveShader()
 	glGetShaderiv(VertShader, GL_COMPILE_STATUS, &Success);
 	if(!Success)
 	{
-		char aLog[1024];
+		char aLog[1024] = {0};
 		glGetShaderInfoLog(VertShader, sizeof(aLog), nullptr, aLog);
-		log_error("chroma_shaders", "Vertex shader compilation failed:\n%s", aLog);
+		log_error("chroma_shaders", "Vertex shader compilation failed for '%s':\n%s", pPack->m_aName, aLog);
 		glDeleteShader(VertShader);
+		m_CompileFailed = true;
 		return false;
 	}
 
@@ -282,11 +298,12 @@ bool CChromaShaders::CompileActiveShader()
 	glGetShaderiv(FragShader, GL_COMPILE_STATUS, &Success);
 	if(!Success)
 	{
-		char aLog[1024];
+		char aLog[1024] = {0};
 		glGetShaderInfoLog(FragShader, sizeof(aLog), nullptr, aLog);
-		log_error("chroma_shaders", "Fragment shader compilation failed:\n%s", aLog);
+		log_error("chroma_shaders", "Fragment shader compilation failed for '%s':\n%s", pPack->m_aName, aLog);
 		glDeleteShader(VertShader);
 		glDeleteShader(FragShader);
+		m_CompileFailed = true;
 		return false;
 	}
 
@@ -302,11 +319,12 @@ bool CChromaShaders::CompileActiveShader()
 	glGetProgramiv(m_ProgramId, GL_LINK_STATUS, &Success);
 	if(!Success)
 	{
-		char aLog[1024];
+		char aLog[1024] = {0};
 		glGetProgramInfoLog(m_ProgramId, sizeof(aLog), nullptr, aLog);
-		log_error("chroma_shaders", "Shader program linking failed:\n%s", aLog);
+		log_error("chroma_shaders", "Shader program linking failed for '%s':\n%s", pPack->m_aName, aLog);
 		glDeleteProgram(m_ProgramId);
 		m_ProgramId = 0;
+		m_CompileFailed = true;
 		return false;
 	}
 
@@ -336,12 +354,15 @@ void CChromaShaders::OnRender()
 	if(Client()->State() == IClient::STATE_OFFLINE)
 		return;
 
+	if(m_CompileFailed)
+		return;
+
 	if(!m_GLInitialized)
 		InitGLResources();
 
 	if(!m_ProgramId)
 	{
-		if(!CompileActiveShader())
+		if(m_CompileAttempted || !CompileActiveShader())
 			return;
 	}
 

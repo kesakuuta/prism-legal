@@ -117,9 +117,9 @@ static const char *LocalizeChroma(const char *pText)
 	if(!str_comp(pText, "Themes   /   chroma. identity")) return "Темы оформления главного меню и GUI";
 	if(!str_comp(pText, "Custom JSON main menu")) return "Свое главное меню из JSON";
 	if(!str_comp(pText, "Select menu theme preset")) return "Выбор темы главного меню";
-	if(!str_comp(pText, "Theme: Chrome Heart Dark")) return "Тема: Chrome Heart Dark";
-	if(!str_comp(pText, "Theme: Chrome Heart Sword")) return "Тема: Chrome Heart Sword";
-	if(!str_comp(pText, "Theme: Fuji Sakura")) return "Тема: Fuji Sakura";
+	if(!str_comp(pText, "Theme: Chroma Dark")) return "Тема: Chroma Dark";
+	if(!str_comp(pText, "Theme: Minecraft Sakura")) return "Тема: Minecraft Sakura";
+	if(!str_comp(pText, "Theme: Chroma Light")) return "Тема: Chroma Light";
 	if(!str_comp(pText, "Theme: Default DDNet")) return "Тема: Стандартное меню DDNet";
 	if(!str_comp(pText, "Reload / apply custom JSON theme")) return "Перезагрузить JSON тему из файла";
 	if(!str_comp(pText, "Accent")) return "Акцентный цвет";
@@ -711,15 +711,15 @@ void CMenus::RenderSettingsPrism(CUIRect Screen)
 		Label("Themes   /   chroma. identity");
 		Toggle("Custom JSON main menu", &g_Config.m_ChromaCustomMenu);
 		Label("Select menu theme preset");
-		if(Button("Theme: Chrome Heart Dark", 18, g_Config.m_ChromaMenuTheme == 1 ? ColorRGBA(0.42f, 0.62f, 0.82f, 0.55f) : ColorRGBA(0.32f, 0.40f, 0.48f, 0.22f)))
+		if(Button("Theme: Chroma Dark", 18, g_Config.m_ChromaMenuTheme == 1 ? ColorRGBA(0.42f, 0.62f, 0.82f, 0.55f) : ColorRGBA(0.32f, 0.40f, 0.48f, 0.22f)))
 		{
 			CChromaMenu::ApplyPreset(1);
 		}
-		if(Button("Theme: Chrome Heart Sword", 19, g_Config.m_ChromaMenuTheme == 2 ? ColorRGBA(0.42f, 0.62f, 0.82f, 0.55f) : ColorRGBA(0.32f, 0.40f, 0.48f, 0.22f)))
+		if(Button("Theme: Minecraft Sakura", 19, g_Config.m_ChromaMenuTheme == 2 ? ColorRGBA(0.42f, 0.62f, 0.82f, 0.55f) : ColorRGBA(0.32f, 0.40f, 0.48f, 0.22f)))
 		{
 			CChromaMenu::ApplyPreset(2);
 		}
-		if(Button("Theme: Fuji Sakura", 20, g_Config.m_ChromaMenuTheme == 3 ? ColorRGBA(0.42f, 0.62f, 0.82f, 0.55f) : ColorRGBA(0.32f, 0.40f, 0.48f, 0.22f)))
+		if(Button("Theme: Chroma Light", 20, g_Config.m_ChromaMenuTheme == 3 ? ColorRGBA(0.42f, 0.62f, 0.82f, 0.55f) : ColorRGBA(0.32f, 0.40f, 0.48f, 0.22f)))
 		{
 			CChromaMenu::ApplyPreset(3);
 		}

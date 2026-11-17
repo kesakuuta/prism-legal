@@ -168,7 +168,7 @@ bool CChromaMenu::LoadTheme(IStorage *pStorage, const char *pFilePath, SMenuThem
 				else if(!str_comp(pBtn, "skins") || !str_comp(pBtn, "dressing_room")) Btn.m_Action = ACTION_SKINS;
 				else if(!str_comp(pBtn, "demos") || !str_comp(pBtn, "achievements")) Btn.m_Action = ACTION_DEMOS;
 				else if(!str_comp(pBtn, "editor") || !str_comp(pBtn, "marketplace")) Btn.m_Action = ACTION_EDITOR;
-				else if(!str_comp(pBtn, "server") || !str_comp(pBtn, "local_server")) Btn.m_Action = ACTION_SERVER;
+				else if(!str_comp(pBtn, "server") || !str_comp(pBtn, "local_server") || !str_comp(pBtn, "start_server") || !str_comp(pBtn, "run_server")) Btn.m_Action = ACTION_SERVER;
 				else if(!str_comp(pBtn, "quit") || !str_comp(pBtn, "exit") || !str_comp(pBtn, "save_and_quit")) Btn.m_Action = ACTION_QUIT;
 				else Btn.m_Action = ACTION_UNKNOWN;
 				Theme.m_vButtons.push_back(Btn);
@@ -197,9 +197,9 @@ void CChromaMenu::Render(CGameClient *pGameClient, CUIRect MainView)
 
 	// Check if theme needs reloading
 	const int TargetPreset = g_Config.m_ChromaMenuTheme;
-	const std::string TargetPath = TargetPreset == 1 ? "chroma/themes/chrome_dark/theme.json" :
-	                              TargetPreset == 2 ? "chroma/themes/chrome_sword/theme.json" :
-	                              TargetPreset == 3 ? "chroma/themes/fuji_sakura/theme.json" :
+	const std::string TargetPath = TargetPreset == 1 ? "chroma/themes/chroma_dark/theme.json" :
+	                              TargetPreset == 2 ? "chroma/themes/minecraft_sakura/theme.json" :
+	                              TargetPreset == 3 ? "chroma/themes/chroma_light/theme.json" :
 	                              g_Config.m_ChromaThemePath;
 
 	if(s_LoadedPreset != TargetPreset || s_LoadedPath != TargetPath)
@@ -231,6 +231,7 @@ void CChromaMenu::Render(CGameClient *pGameClient, CUIRect MainView)
 			s_ActiveTheme.m_HoverColor = ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f);
 			s_ActiveTheme.m_vButtons = {
 				{"play", "Play", ACTION_PLAY},
+				{"server", "Start Server", ACTION_SERVER},
 				{"settings", "Settings", ACTION_SETTINGS},
 				{"skins", "Skins", ACTION_SKINS},
 				{"demos", "Demos", ACTION_DEMOS},
@@ -254,7 +255,7 @@ void CChromaMenu::Render(CGameClient *pGameClient, CUIRect MainView)
 	{
 		// Draw frozen last frame underneath during crossfade
 		if(!s_FrozenFrameTex.IsValid())
-			s_FrozenFrameTex = pGameClient->Graphics()->LoadTexture("video/startup/frame_091.png", IStorage::TYPE_ALL);
+			s_FrozenFrameTex = pGameClient->Graphics()->LoadTexture("video/startup/frame_088.png", IStorage::TYPE_ALL);
 
 		if(s_FrozenFrameTex.IsValid())
 		{
@@ -385,7 +386,10 @@ void CChromaMenu::Render(CGameClient *pGameClient, CUIRect MainView)
 		case ACTION_DEMOS: pLabel = IsRu ? "Демо" : "Demos"; break;
 		case ACTION_EDITOR: pLabel = IsRu ? "Редактор" : "Editor"; break;
 		case ACTION_SERVER:
-			pLabel = pGameClient->m_LocalServer.IsServerRunning() ? Localize("Stop server") : Localize("Run server");
+			if(IsRu)
+				pLabel = pGameClient->m_LocalServer.IsServerRunning() ? "Остановить сервер" : "Запустить сервер";
+			else
+				pLabel = pGameClient->m_LocalServer.IsServerRunning() ? "Stop Server" : "Start Server";
 			break;
 		case ACTION_QUIT: pLabel = IsRu ? "Выход из игры" : "Save & Quit"; break;
 		default: pLabel = Btn.m_Key.c_str(); break;

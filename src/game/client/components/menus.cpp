@@ -706,8 +706,8 @@ void CMenus::RenderLoadingDirect(const char *pCaption, const char *pContent, std
 		s_StartupVideoStartTime = time_get();
 
 	float Elapsed = (float)(time_get() - s_StartupVideoStartTime) / (float)time_freq();
-	int TargetFrame = std::clamp((int)(Elapsed * 30.0f) + 1, 1, 91);
-	bool VideoPlaying = (TargetFrame < 91);
+	int TargetFrame = std::clamp((int)(Elapsed * 30.0f) + 1, 1, 88);
+	bool VideoPlaying = (TargetFrame < 88);
 
 	// Load video frame texture on demand
 	if(TargetFrame != s_CurrentVideoFrameIdx)
@@ -1047,6 +1047,18 @@ void CMenus::Render()
 	else
 	{
 		m_CommunityIcons.Update();
+	}
+
+	if(Client()->State() == IClient::STATE_OFFLINE && g_Config.m_SndEnable && g_Config.m_SndMusic)
+	{
+		static int64_t s_LastMusicCheck = 0;
+		int64_t Now = time_get();
+		if(Now - s_LastMusicCheck > time_freq() * 2)
+		{
+			s_LastMusicCheck = Now;
+			if(!GameClient()->m_Sounds.IsPlaying(SOUND_MENU))
+				UpdateMusicState();
+		}
 	}
 
 	// Initially add DDNet as favorite community and select its tab.

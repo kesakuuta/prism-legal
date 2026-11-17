@@ -1,0 +1,27 @@
+{
+  "theme_version": 1,
+  "name": "Chroma Light",
+  "background": "chroma/themes/chroma_light/background.png",
+  "background_fill": [0.94, 0.94, 0.96, 1.0],
+  "greeting": "Hello, {player}",
+  "greeting_font_size": 28.0,
+  "greeting_color": [0.12, 0.12, 0.15, 1.0],
+  "greeting_x": 0.12,
+  "greeting_y": 0.36,
+  "menu_x": 0.12,
+  "menu_y": 0.44,
+  "button_font_size": 15.0,
+  "button_spacing": 20.0,
+  "text_color": [0.25, 0.26, 0.30, 1.0],
+  "hover_color": [0.02, 0.02, 0.04, 1.0],
+  "active_color": [0.10, 0.45, 0.85, 1.0],
+  "show_version": false,
+  "buttons": [
+    "play",
+    "server",
+    "settings",
+    "skins",
+    "demos",
+    "quit"
+  ]
+}

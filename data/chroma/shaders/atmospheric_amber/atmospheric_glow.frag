@@ -1,4 +1,7 @@
-#version 330 core
+#version 130
+#ifdef GL_ES
+precision mediump float;
+#endif
 
 // Fullscreen quad texture coordinates
 in vec2 oTexCoord;

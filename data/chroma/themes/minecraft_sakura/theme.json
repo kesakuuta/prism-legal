@@ -1,7 +1,7 @@
 {
   "theme_version": 1,
-  "name": "Chrome Sword Pixel",
-  "background": "chroma/themes/chrome_sword/background.png",
+  "name": "Minecraft Sakura",
+  "background": "chroma/themes/minecraft_sakura/background.png",
   "background_fill": [
     0.12,
     0.12,
@@ -44,6 +44,7 @@
   "watermark_text": "chroma. | DDNet 20.3",
   "buttons": [
     "play",
+    "server",
     "settings",
     "skins",
     "demos",

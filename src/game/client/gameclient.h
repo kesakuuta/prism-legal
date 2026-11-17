@@ -68,7 +68,6 @@
 #include "components/statboard.h"
 #include "components/touch_controls.h"
 #include "components/voting.h"
-#include "components/chroma_music_player.h"
 #include "components/chroma_shaders.h"
 
 #include <memory>
@@ -163,7 +162,6 @@ public:
 	CKeyBinder m_KeyBinder;
 	CParticles m_Particles;
 	CMenus m_Menus;
-	CChromaMusicPlayer m_ChromaMusicPlayer;
 	CChromaShaders m_ChromaShaders;
 
 	CSkins m_Skins;

@@ -2735,8 +2735,6 @@ if(CLIENT)
     components/menus_settings_tee7.cpp
     components/chroma_menu.cpp
     components/chroma_menu.h
-    components/chroma_music_player.cpp
-    components/chroma_music_player.h
     components/chroma_shaders.cpp
     components/chroma_shaders.h
     components/menus_start.cpp

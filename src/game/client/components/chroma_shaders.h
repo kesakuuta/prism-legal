@@ -70,6 +70,8 @@ private:
 	unsigned int m_QuadVAO;
 	unsigned int m_QuadVBO;
 	bool m_GLInitialized;
+	bool m_CompileAttempted;
+	bool m_CompileFailed;
 	int m_TexWidth;
 	int m_TexHeight;
 
