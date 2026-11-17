@@ -14,7 +14,7 @@
 
 <br>
 
-[![Release](https://img.shields.io/badge/Release-v1.0.8-8A2BE2?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kesakuuta/prism-legal/releases/tag/v1.0.8)
+[![Release](https://img.shields.io/badge/Release-v1.0.9-8A2BE2?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kesakuuta/prism-legal/releases/tag/v1.0.9)
 [![Base](https://img.shields.io/badge/DDNet-20.3-00C853?style=for-the-badge&logo=cplusplus&logoColor=white)](https://github.com/ddnet/ddnet)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/kesakuuta/prism-legal/releases)
 [![Fair Play](https://img.shields.io/badge/Fair--Play-100%25%20Legal-FFD700?style=for-the-badge&logo=shield&logoColor=black)](https://github.com/kesakuuta/prism-legal)
@@ -95,9 +95,9 @@
 
 | Платформа | Архитектура | Формат | Содержимое | Ссылка на скачивание |
 | :--- | :---: | :---: | :--- | :--- |
-| **Windows** | `x86_64` | `.zip` | Клиент `chroma.exe` + Лаунчер + Сервер + Все ассеты | [📥 **chroma.-Windows-x64.zip**](https://github.com/kesakuuta/prism-legal/releases/download/v1.0.8/chroma.-Windows-x64.zip) |
-| **Windows** | `x86_64` | `.exe` | Отдельный бинарник лаунчера | [📥 **chroma-launcher.exe**](https://github.com/kesakuuta/prism-legal/releases/download/v1.0.8/chroma-launcher.exe) |
-| **Linux** | `x86_64` | `.tar.gz` | Клиент `chroma` + Сервер + Все ассеты | [📥 **chroma.-Linux-x86_64.tar.gz**](https://github.com/kesakuuta/prism-legal/releases/download/v1.0.8/chroma.-Linux-x86_64.tar.gz) |
+| **Windows** | `x86_64` | `.zip` | Клиент `chroma.exe` + Лаунчер + Сервер + Все ассеты | [📥 **chroma.-Windows-x64.zip**](https://github.com/kesakuuta/prism-legal/releases/download/v1.0.9/chroma.-Windows-x64.zip) |
+| **Windows** | `x86_64` | `.exe` | Отдельный бинарник лаунчера | [📥 **chroma-launcher.exe**](https://github.com/kesakuuta/prism-legal/releases/download/v1.0.9/chroma-launcher.exe) |
+| **Linux** | `x86_64` | `.tar.gz` | Клиент `chroma` + Сервер + Все ассеты | [📥 **chroma.-Linux-x86_64.tar.gz**](https://github.com/kesakuuta/prism-legal/releases/download/v1.0.9/chroma.-Linux-x86_64.tar.gz) |
 
 > [!TIP]
 > **Быстрый старт на Windows:**

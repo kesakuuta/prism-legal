@@ -50,7 +50,8 @@ void CMenus::LoadEntities(SCustomEntities *pEntitiesItem, void *pUser)
 		for(int i = 0; i < MAP_IMAGE_MOD_TYPE_COUNT; ++i)
 		{
 			str_format(aPath, sizeof(aPath), "editor/entities_clear/%s.png", gs_apModEntitiesNames[i]);
-			pEntitiesItem->m_aImages[i].m_Texture = pThis->Graphics()->LoadTexture(aPath, IStorage::TYPE_ALL);
+			if(pThis->Storage()->FileExists(aPath, IStorage::TYPE_ALL))
+				pEntitiesItem->m_aImages[i].m_Texture = pThis->Graphics()->LoadTexture(aPath, IStorage::TYPE_ALL);
 			if(!pEntitiesItem->m_RenderTexture.IsValid() || pEntitiesItem->m_RenderTexture.IsNullTexture())
 				pEntitiesItem->m_RenderTexture = pEntitiesItem->m_aImages[i].m_Texture;
 		}
@@ -60,11 +61,25 @@ void CMenus::LoadEntities(SCustomEntities *pEntitiesItem, void *pUser)
 		for(int i = 0; i < MAP_IMAGE_MOD_TYPE_COUNT; ++i)
 		{
 			str_format(aPath, sizeof(aPath), "assets/entities/%s/%s.png", pEntitiesItem->m_aName, gs_apModEntitiesNames[i]);
-			pEntitiesItem->m_aImages[i].m_Texture = pThis->Graphics()->LoadTexture(aPath, IStorage::TYPE_ALL);
-			if(pEntitiesItem->m_aImages[i].m_Texture.IsNullTexture())
+			if(pThis->Storage()->FileExists(aPath, IStorage::TYPE_ALL))
+			{
+				pEntitiesItem->m_aImages[i].m_Texture = pThis->Graphics()->LoadTexture(aPath, IStorage::TYPE_ALL);
+			}
+			else
 			{
 				str_format(aPath, sizeof(aPath), "assets/entities/%s.png", pEntitiesItem->m_aName);
-				pEntitiesItem->m_aImages[i].m_Texture = pThis->Graphics()->LoadTexture(aPath, IStorage::TYPE_ALL);
+				if(pThis->Storage()->FileExists(aPath, IStorage::TYPE_ALL))
+				{
+					pEntitiesItem->m_aImages[i].m_Texture = pThis->Graphics()->LoadTexture(aPath, IStorage::TYPE_ALL);
+				}
+				else
+				{
+					str_format(aPath, sizeof(aPath), "assets/entities/%s/ddnet.png", pEntitiesItem->m_aName);
+					if(pThis->Storage()->FileExists(aPath, IStorage::TYPE_ALL))
+					{
+						pEntitiesItem->m_aImages[i].m_Texture = pThis->Graphics()->LoadTexture(aPath, IStorage::TYPE_ALL);
+					}
+				}
 			}
 			if(!pEntitiesItem->m_RenderTexture.IsValid() || pEntitiesItem->m_RenderTexture.IsNullTexture())
 				pEntitiesItem->m_RenderTexture = pEntitiesItem->m_aImages[i].m_Texture;
@@ -113,28 +128,33 @@ int CMenus::EntitiesScan(const char *pName, int IsDir, int DirType, void *pUser)
 }
 
 template<typename TName>
-static void LoadAsset(TName *pAssetItem, const char *pAssetName, IGraphics *pGraphics)
+static void LoadAsset(TName *pAssetItem, const char *pAssetName, IGraphics *pGraphics, IStorage *pStorage)
 {
 	char aPath[IO_MAX_PATH_LENGTH];
 	if(str_comp(pAssetItem->m_aName, "default") == 0)
 	{
 		str_format(aPath, sizeof(aPath), "%s.png", pAssetName);
-		pAssetItem->m_RenderTexture = pGraphics->LoadTexture(aPath, IStorage::TYPE_ALL);
+		if(pStorage->FileExists(aPath, IStorage::TYPE_ALL))
+			pAssetItem->m_RenderTexture = pGraphics->LoadTexture(aPath, IStorage::TYPE_ALL);
 	}
 	else
 	{
 		str_format(aPath, sizeof(aPath), "assets/%s/%s.png", pAssetName, pAssetItem->m_aName);
-		pAssetItem->m_RenderTexture = pGraphics->LoadTexture(aPath, IStorage::TYPE_ALL);
-		if(pAssetItem->m_RenderTexture.IsNullTexture())
+		if(pStorage->FileExists(aPath, IStorage::TYPE_ALL))
+		{
+			pAssetItem->m_RenderTexture = pGraphics->LoadTexture(aPath, IStorage::TYPE_ALL);
+		}
+		else
 		{
 			str_format(aPath, sizeof(aPath), "assets/%s/%s/%s.png", pAssetName, pAssetItem->m_aName, pAssetName);
-			pAssetItem->m_RenderTexture = pGraphics->LoadTexture(aPath, IStorage::TYPE_ALL);
+			if(pStorage->FileExists(aPath, IStorage::TYPE_ALL))
+				pAssetItem->m_RenderTexture = pGraphics->LoadTexture(aPath, IStorage::TYPE_ALL);
 		}
 	}
 }
 
 template<typename TName>
-static int AssetScan(const char *pName, int IsDir, int DirType, std::vector<TName> &vAssetList, const char *pAssetName, IGraphics *pGraphics, void *pUser)
+static int AssetScan(const char *pName, int IsDir, int DirType, std::vector<TName> &vAssetList, const char *pAssetName, IGraphics *pGraphics, IStorage *pStorage, void *pUser)
 {
 	auto *pRealUser = (SMenuAssetScanUser *)pUser;
 	if(IsDir)
@@ -148,7 +168,7 @@ static int AssetScan(const char *pName, int IsDir, int DirType, std::vector<TNam
 
 		TName AssetItem;
 		str_copy(AssetItem.m_aName, pName);
-		LoadAsset(&AssetItem, pAssetName, pGraphics);
+		LoadAsset(&AssetItem, pAssetName, pGraphics, pStorage);
 		vAssetList.push_back(AssetItem);
 	}
 	else
@@ -163,7 +183,7 @@ static int AssetScan(const char *pName, int IsDir, int DirType, std::vector<TNam
 
 			TName AssetItem;
 			str_copy(AssetItem.m_aName, aName);
-			LoadAsset(&AssetItem, pAssetName, pGraphics);
+			LoadAsset(&AssetItem, pAssetName, pGraphics, pStorage);
 			vAssetList.push_back(AssetItem);
 		}
 	}
@@ -178,7 +198,8 @@ int CMenus::GameScan(const char *pName, int IsDir, int DirType, void *pUser)
 	auto *pRealUser = (SMenuAssetScanUser *)pUser;
 	auto *pThis = (CMenus *)pRealUser->m_pUser;
 	IGraphics *pGraphics = pThis->Graphics();
-	return AssetScan(pName, IsDir, DirType, pThis->m_vGameList, "game", pGraphics, pUser);
+	IStorage *pStorage = pThis->Storage();
+	return AssetScan(pName, IsDir, DirType, pThis->m_vGameList, "game", pGraphics, pStorage, pUser);
 }
 
 int CMenus::EmoticonsScan(const char *pName, int IsDir, int DirType, void *pUser)
@@ -186,7 +207,8 @@ int CMenus::EmoticonsScan(const char *pName, int IsDir, int DirType, void *pUser
 	auto *pRealUser = (SMenuAssetScanUser *)pUser;
 	auto *pThis = (CMenus *)pRealUser->m_pUser;
 	IGraphics *pGraphics = pThis->Graphics();
-	return AssetScan(pName, IsDir, DirType, pThis->m_vEmoticonList, "emoticons", pGraphics, pUser);
+	IStorage *pStorage = pThis->Storage();
+	return AssetScan(pName, IsDir, DirType, pThis->m_vEmoticonList, "emoticons", pGraphics, pStorage, pUser);
 }
 
 int CMenus::ParticlesScan(const char *pName, int IsDir, int DirType, void *pUser)
@@ -194,7 +216,8 @@ int CMenus::ParticlesScan(const char *pName, int IsDir, int DirType, void *pUser
 	auto *pRealUser = (SMenuAssetScanUser *)pUser;
 	auto *pThis = (CMenus *)pRealUser->m_pUser;
 	IGraphics *pGraphics = pThis->Graphics();
-	return AssetScan(pName, IsDir, DirType, pThis->m_vParticlesList, "particles", pGraphics, pUser);
+	IStorage *pStorage = pThis->Storage();
+	return AssetScan(pName, IsDir, DirType, pThis->m_vParticlesList, "particles", pGraphics, pStorage, pUser);
 }
 
 int CMenus::HudScan(const char *pName, int IsDir, int DirType, void *pUser)
@@ -202,7 +225,8 @@ int CMenus::HudScan(const char *pName, int IsDir, int DirType, void *pUser)
 	auto *pRealUser = (SMenuAssetScanUser *)pUser;
 	auto *pThis = (CMenus *)pRealUser->m_pUser;
 	IGraphics *pGraphics = pThis->Graphics();
-	return AssetScan(pName, IsDir, DirType, pThis->m_vHudList, "hud", pGraphics, pUser);
+	IStorage *pStorage = pThis->Storage();
+	return AssetScan(pName, IsDir, DirType, pThis->m_vHudList, "hud", pGraphics, pStorage, pUser);
 }
 
 int CMenus::ExtrasScan(const char *pName, int IsDir, int DirType, void *pUser)
@@ -210,7 +234,8 @@ int CMenus::ExtrasScan(const char *pName, int IsDir, int DirType, void *pUser)
 	auto *pRealUser = (SMenuAssetScanUser *)pUser;
 	auto *pThis = (CMenus *)pRealUser->m_pUser;
 	IGraphics *pGraphics = pThis->Graphics();
-	return AssetScan(pName, IsDir, DirType, pThis->m_vExtrasList, "extras", pGraphics, pUser);
+	IStorage *pStorage = pThis->Storage();
+	return AssetScan(pName, IsDir, DirType, pThis->m_vExtrasList, "extras", pGraphics, pStorage, pUser);
 }
 
 static std::vector<const CMenus::SCustomEntities *> gs_vpSearchEntitiesList;
@@ -334,7 +359,7 @@ static void InitAssetList(std::vector<TName> &vAssetList, const char *pAssetPath
 	{
 		TName AssetItem;
 		str_copy(AssetItem.m_aName, "default");
-		LoadAsset(&AssetItem, pAssetName, pGraphics);
+		LoadAsset(&AssetItem, pAssetName, pGraphics, pStorage);
 		vAssetList.push_back(AssetItem);
 
 		// load assets
@@ -374,6 +399,13 @@ void CMenus::RenderSettingsShaders(CUIRect View)
 	if(DoButton_CheckBox(&g_Config.m_ChromaShaders, Localize("Enable post-processing shaders"), g_Config.m_ChromaShaders, &EnableBtn))
 	{
 		g_Config.m_ChromaShaders ^= 1;
+		if(g_Config.m_ChromaShaders)
+		{
+			int CurIdx = GameClient()->m_ChromaShaders.ActiveShaderIndex();
+			if(CurIdx < 0)
+				CurIdx = 0;
+			GameClient()->m_ChromaShaders.SelectShader(CurIdx);
+		}
 	}
 
 	ListArea.HSplitTop(12.0f, nullptr, &ListArea);

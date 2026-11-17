@@ -48,12 +48,23 @@ CChromaShaders::~CChromaShaders()
 void CChromaShaders::OnInit()
 {
 	ScanShaders();
+	m_ActiveShaderIndex = -1;
 	if(!m_vShaders.empty())
 	{
-		SelectShaderByName(g_Config.m_ChromaActiveShader);
+		for(size_t i = 0; i < m_vShaders.size(); ++i)
+		{
+			if(str_comp_nocase(m_vShaders[i].m_aName, g_Config.m_ChromaActiveShader) == 0)
+			{
+				m_ActiveShaderIndex = (int)i;
+				break;
+			}
+		}
 		if(m_ActiveShaderIndex < 0)
-			SelectShader(0);
+			m_ActiveShaderIndex = 0;
+		str_copy(g_Config.m_ChromaActiveShader, m_vShaders[m_ActiveShaderIndex].m_aName);
 	}
+	m_CompileAttempted = false;
+	m_CompileFailed = false;
 }
 
 void CChromaShaders::OnReset()
@@ -311,6 +322,11 @@ bool CChromaShaders::CompileActiveShader()
 	m_ProgramId = glCreateProgram();
 	glAttachShader(m_ProgramId, VertShader);
 	glAttachShader(m_ProgramId, FragShader);
+
+	// Explicitly bind vertex attribute locations before linking (for GLSL 1.30 / legacy GL profile)
+	glBindAttribLocation(m_ProgramId, 0, "inPosition");
+	glBindAttribLocation(m_ProgramId, 1, "inTexCoord");
+
 	glLinkProgram(m_ProgramId);
 
 	glDeleteShader(VertShader);
@@ -362,7 +378,7 @@ void CChromaShaders::OnRender()
 
 	if(!m_ProgramId)
 	{
-		if(m_CompileAttempted || !CompileActiveShader())
+		if(m_CompileFailed || !CompileActiveShader())
 			return;
 	}
 
