@@ -168,6 +168,8 @@ public:
 		CMD_WINDOW_CREATE_NTF,
 		CMD_WINDOW_DESTROY_NTF,
 
+		CMD_CHROMA_SHADER_RENDER,
+
 		CMD_COUNT,
 	};
 
@@ -588,6 +590,17 @@ public:
 			SCommand(CMD_WINDOW_DESTROY_NTF) {}
 
 		uint32_t m_WindowId;
+	};
+
+	struct SCommand_ChromaShaderRender : public CCommandBuffer::SCommand
+	{
+		SCommand_ChromaShaderRender() :
+			SCommand(CMD_CHROMA_SHADER_RENDER),
+			m_pfnCallback(nullptr),
+			m_pUser(nullptr) {}
+
+		void (*m_pfnCallback)(void *pUser);
+		void *m_pUser;
 	};
 
 	//
@@ -1231,6 +1244,7 @@ public:
 	void ReadPixel(ivec2 Position, ColorRGBA *pColor) override;
 	void TakeScreenshot(const char *pFilename) override;
 	void TakeCustomScreenshot(const char *pFilename) override;
+	void RenderChromaShader(void (*pfnCallback)(void *pUser), void *pUser) override;
 	void ReadFramebuffer(CImageInfo &Image);
 	void SetScreenSize(int Width, int Height);
 	void Swap() override;

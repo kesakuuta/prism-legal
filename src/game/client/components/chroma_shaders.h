@@ -91,6 +91,12 @@ private:
 	bool CompileActiveShader();
 	void InitGLResources();
 	void CleanupGLResources();
+
+	static void DispatchRenderCallback(void *pUser);
+	void RenderShaderBackend();
+
+	vec2 m_LastPlayerPosNorm;
+	float m_LastTime;
 };
 
 #endif // GAME_CLIENT_COMPONENTS_CHROMA_SHADERS_H

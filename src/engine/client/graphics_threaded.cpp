@@ -2718,6 +2718,14 @@ void CGraphics_Threaded::TakeCustomScreenshot(const char *pFilename)
 	m_DoScreenshot = true;
 }
 
+void CGraphics_Threaded::RenderChromaShader(void (*pfnCallback)(void *pUser), void *pUser)
+{
+	CCommandBuffer::SCommand_ChromaShaderRender Cmd;
+	Cmd.m_pfnCallback = pfnCallback;
+	Cmd.m_pUser = pUser;
+	AddCmd(Cmd);
+}
+
 void CGraphics_Threaded::ReadFramebuffer(CImageInfo &Image)
 {
 	CCommandBuffer::SCommand_TrySwapAndScreenshot Cmd;

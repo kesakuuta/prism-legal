@@ -1131,6 +1131,13 @@ ERunCommandReturnTypes CCommandProcessorFragment_OpenGL::RunCommand(const CComma
 	case CCommandBuffer::CMD_UPDATE_VIEWPORT:
 		Cmd_Update_Viewport(static_cast<const CCommandBuffer::SCommand_Update_Viewport *>(pBaseCommand));
 		break;
+	case CCommandBuffer::CMD_CHROMA_SHADER_RENDER:
+	{
+		auto *pCmd = static_cast<const CCommandBuffer::SCommand_ChromaShaderRender *>(pBaseCommand);
+		if(pCmd->m_pfnCallback)
+			pCmd->m_pfnCallback(pCmd->m_pUser);
+		break;
+	}
 
 	case CCommandBuffer::CMD_CREATE_BUFFER_OBJECT: Cmd_CreateBufferObject(static_cast<const CCommandBuffer::SCommand_CreateBufferObject *>(pBaseCommand)); break;
 	case CCommandBuffer::CMD_UPDATE_BUFFER_OBJECT: Cmd_UpdateBufferObject(static_cast<const CCommandBuffer::SCommand_UpdateBufferObject *>(pBaseCommand)); break;

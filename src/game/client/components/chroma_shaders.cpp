@@ -373,6 +373,36 @@ void CChromaShaders::OnRender()
 	if(m_CompileFailed)
 		return;
 
+	int Width = Graphics()->ScreenWidth();
+	int Height = Graphics()->ScreenHeight();
+	if(Width <= 0 || Height <= 0)
+		return;
+
+	// Calculate normalized local player position [0, 1] on screen
+	vec2 PlayerPosNorm(0.5f, 0.5f);
+	if(GameClient()->m_Snap.m_pLocalCharacter)
+	{
+		// Target local Tee position in screen space
+		vec2 TeePos = GameClient()->m_Controls.m_aTargetPos[0];
+		PlayerPosNorm.x = std::clamp((TeePos.x / (float)Width) + 0.5f, 0.0f, 1.0f);
+		PlayerPosNorm.y = std::clamp((TeePos.y / (float)Height) + 0.5f, 0.0f, 1.0f);
+	}
+
+	m_LastPlayerPosNorm = PlayerPosNorm;
+	m_LastTime = (float)Client()->LocalTime();
+
+	// Dispatch rendering to graphics backend thread where OpenGL context is active
+	Graphics()->RenderChromaShader(DispatchRenderCallback, this);
+}
+
+void CChromaShaders::DispatchRenderCallback(void *pUser)
+{
+	if(pUser)
+		static_cast<CChromaShaders *>(pUser)->RenderShaderBackend();
+}
+
+void CChromaShaders::RenderShaderBackend()
+{
 	if(!m_GLInitialized)
 		InitGLResources();
 
@@ -403,16 +433,6 @@ void CChromaShaders::OnRender()
 	// Capture currently rendered world buffer into texture
 	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, Width, Height);
 
-	// Calculate normalized local player position [0, 1] on screen
-	vec2 PlayerPosNorm(0.5f, 0.5f);
-	if(GameClient()->m_Snap.m_pLocalCharacter)
-	{
-		// Target local Tee position in screen space
-		vec2 TeePos = GameClient()->m_Controls.m_aTargetPos[0];
-		PlayerPosNorm.x = std::clamp((TeePos.x / (float)Width) + 0.5f, 0.0f, 1.0f);
-		PlayerPosNorm.y = std::clamp((TeePos.y / (float)Height) + 0.5f, 0.0f, 1.0f);
-	}
-
 	// Render Fullscreen Post-Processing Quad
 	glUseProgram(m_ProgramId);
 
@@ -421,8 +441,8 @@ void CChromaShaders::OnRender()
 	if(m_LocScreenTexture >= 0) glUniform1i(m_LocScreenTexture, 0);
 
 	if(m_LocResolution >= 0) glUniform2f(m_LocResolution, (float)Width, (float)Height);
-	if(m_LocPlayerPos >= 0) glUniform2f(m_LocPlayerPos, PlayerPosNorm.x, PlayerPosNorm.y);
-	if(m_LocTime >= 0) glUniform1f(m_LocTime, (float)Client()->LocalTime());
+	if(m_LocPlayerPos >= 0) glUniform2f(m_LocPlayerPos, m_LastPlayerPosNorm.x, m_LastPlayerPosNorm.y);
+	if(m_LocTime >= 0) glUniform1f(m_LocTime, m_LastTime);
 
 	if(m_LocLightRadius >= 0) glUniform1f(m_LocLightRadius, pPack->m_LightRadius);
 	if(m_LocLightIntensity >= 0) glUniform1f(m_LocLightIntensity, pPack->m_LightIntensity);
