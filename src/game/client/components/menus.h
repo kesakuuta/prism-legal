@@ -475,7 +475,6 @@ protected:
 	void RenderNews(CUIRect MainView);
 	static void ConchainBackgroundEntities(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 	static void ConchainUpdateMusicState(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
-	void UpdateMusicState();
 
 	// found in menus_demo.cpp
 	vec2 m_DemoControlsPositionOffset = vec2(0.0f, 0.0f);
@@ -670,6 +669,7 @@ protected:
 	IGraphics::CTextureHandle m_TextureBlob;
 
 public:
+	void UpdateMusicState();
 	void RenderBackground();
 
 	CMenus();
